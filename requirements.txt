@@ -5,3 +5,6 @@ uuid
 starlette
 python-dotenv
 requests
+plaid-python
+firebase-admin
+plaid

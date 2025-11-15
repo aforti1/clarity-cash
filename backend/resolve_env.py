@@ -3,7 +3,12 @@
 from dotenv import load_dotenv
 import os
 
-def get_nessie_api_key() -> str:
+def get_plaid_client_id() -> str:
     """Retrieve the Nessie API key from environment variables."""
     load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))  # Load environment variables from .env file
-    return os.getenv("NESSIE_API_KEY")  # Defaulted to public demo key
+    return os.getenv("PLAID_CLIENT_ID")
+
+def get_plaid_sandbox_secret() -> str:
+    """Retrieve the Nessie API key from environment variables."""
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))  # Load environment variables from .env file
+    return os.getenv("PLAID_SANDBOX_SECRET")
