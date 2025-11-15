@@ -4,9 +4,13 @@ import os
 from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
-from plaid import Client
+import plaid
 from plaid.api import plaid_api
 from plaid.model.products import Products
+from plaid.model.link_token_create_request import LinkTokenCreateRequest
+from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
+from plaid.model.accounts_get_request import AccountsGetRequest
+from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.country_code import CountryCode
 
 # Load environment variables
@@ -29,13 +33,14 @@ PLAID_SECRET = os.getenv("PLAID_SECRET")
 PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")
 
 configuration = plaid_api.Configuration(
-    host=plaid_api.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Production,
+    host=plaid_api.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Devlopment,
     api_key={
         'clientId': PLAID_CLIENT_ID,
         'secret': PLAID_SECRET
     }
 )
-plaid_client = plaid_api.PlaidApi(configuration)
+api_client = plaid.ApiClient(configuration=configuration)
+plaid_client = plaid.PlaidApi(api_client)
 
 # ---------------------
 # FastAPI app
@@ -45,7 +50,7 @@ app = FastAPI()
 # Allow frontend CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this to your frontend URL in production
+    allow_origins=["*"],  # Change this frontend URL in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
