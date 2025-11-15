@@ -3,3 +3,5 @@ uvicorn
 pydantic
 uuid
 starlette
+python-dotenv
+requests
