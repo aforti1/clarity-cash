@@ -59,6 +59,10 @@ app.add_middleware(
 def root():
     return {"message": "FastAPI + Firebase + Plaid backend running!"}
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint."""
+    return {"status": "ok"}
 
 @app.get("/users/{uid}")
 def get_user(uid: str):
@@ -86,4 +90,22 @@ def create_sandbox_link_token():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
+@app.get("/plaid/sandbox-exchange-token/{public_token}")
+def exchange_sandbox_public_token(public_token: str):
+    """Exchange a Plaid public token for an access token."""
+    try:
+        request = plaid_api.ItemPublicTokenExchangeRequest(public_token=public_token)
+        response = plaid_client.item_public_token_exchange(request)
+        return response.to_dict()  # Return as a JSON response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/plaid/accounts/{access_token}")
+def get_plaid_accounts(access_token: str):
+    """Fetch accounts associated with a given Plaid access token."""
+    try:
+        request = plaid_api.AccountsGetRequest(access_token=access_token)
+        response = plaid_client.accounts_get(request)
+        return response.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
