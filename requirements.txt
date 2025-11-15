@@ -5,3 +5,4 @@ uuid
 starlette
 python-dotenv
 requests
+plaid-python
