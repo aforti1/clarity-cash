@@ -1,13 +1,14 @@
-<<<<<<< Updated upstream
+# backend/llm_module.py
 import os
 import requests
-hf_token = get_hf_token()  # ensures the token is loaded early
 
 # -----------------------------
-# Hugging Face hosted model setup
+# Hugging Face model config
 # -----------------------------
 HF_MODEL = "your-username/clarity_llm"  # Replace with your hosted model repo
-HF_API_TOKEN = os.environ.get("HF_API_TOKEN")  # Make sure to set this in .env
+HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
+if not HF_API_TOKEN:
+    raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
 
 HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
 
@@ -15,12 +16,15 @@ HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
 # General LLM suggestion
 # -----------------------------
 def generate_suggestion(prompt: str, max_tokens: int = 100) -> str:
+    """
+    Send a prompt to the Hugging Face hosted model and return the generated text.
+    """
     payload = {"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}
     response = requests.post(
         f"https://api-inference.huggingface.co/models/{HF_MODEL}",
         headers=HEADERS,
         json=payload,
-        timeout=60  # optional: increase if model is large
+        timeout=60
     )
     response.raise_for_status()
     try:
@@ -31,29 +35,6 @@ def generate_suggestion(prompt: str, max_tokens: int = 100) -> str:
 # -----------------------------
 # Gemini transaction suggestion
 # -----------------------------
-=======
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import os
-
-
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "clarity_llm")
-print(f"Loading model from: {MODEL_PATH}")
-
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, local_files_only=True)
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, local_files_only=True)
-
-def generate_suggestion(prompt: str, max_tokens: int = 100) -> str:
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=max_tokens,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.9
-    )
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
-
->>>>>>> Stashed changes
 def generate_gemini_suggestion(
     transaction_name: str,
     transaction_amount: float,
@@ -61,6 +42,9 @@ def generate_gemini_suggestion(
     user_context: dict = None,
     max_tokens: int = 150
 ) -> str:
+    """
+    Generate up to 3 cheaper alternatives and 1 micro-action for a transaction.
+    """
     prompt = f"""
 You are Clarity Cash AI, a friendly budgeting assistant.
 
@@ -75,7 +59,6 @@ Generate:
 1. Up to 3 cheaper alternatives (Gemini options) with price and short explanation.
 2. One micro-action to optimize user's spending related to this transaction.
 3. Keep the tone friendly, concise, and playful. Include emoji if appropriate.
-<<<<<<< Updated upstream
 """
     payload = {"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}
     response = requests.post(
@@ -89,21 +72,3 @@ Generate:
         return response.json()[0]["generated_text"]
     except (KeyError, IndexError):
         return "No suggestion generated."
-
-=======
-Format:
-- Gemini Option 1: ...
-- Gemini Option 2: ...
-- Gemini Option 3: ...
-- Micro-Action: ...
-"""
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=max_tokens,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.9
-    )
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
->>>>>>> Stashed changes
