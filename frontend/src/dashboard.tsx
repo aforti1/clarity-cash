@@ -13,116 +13,107 @@ type PaycheckSummary = {
   spent_since_paycheck: number;
 }
 
-function dashboard() {
+function Dashboard() {
+  const uid = useFirebaseAuth().uid ?? ''
+
+  const [summary, setSummary] = useState<PaycheckSummary | null>(null)
+  const [meanScores, setMeanScores] = useState<number[]>([])
+  const [transactions, setTransactions] = useState<any[]>([])
+
+  const [loadingSummary, setLoadingSummary] = useState(true)
+  const [loadingScores, setLoadingScores] = useState(true)
+  const [loadingTransactions, setLoadingTransactions] = useState(true)
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedScore, setSelectedScore] = useState(0)
   const [selectedReasons, setSelectedReasons] = useState('')
   const [selectedDescription, setSelectedDescription] = useState('')
 
-  // Loading states
-  const [loadingSummary, setLoadingSummary] = useState(true)
-  const [loadingScores, setLoadingScores] = useState(true)
-  const [loadingTransactions, setLoadingTransactions] = useState(true)
-
-  // Get data for the pie chart from backend (last paycheck amount spent)
-  const uid = useFirebaseAuth().uid ?? ''
-  const [summary, setSummary] = useState<PaycheckSummary | null>(null);
-  const [meanScores, setMeanScores] = useState<number[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
-
   useEffect(() => {
-    let isMounted = true
-    
-    // Fetch paycheck summary data
-    const fetchPieChartData = async () => {
-      setLoadingSummary(true)
+    if (!uid) return;
+
+    let mounted = true;
+
+    // ---- FETCH PAYCHECK SUMMARY ----
+    const loadSummary = async () => {
       try {
-        const response = await fetch(`/api/plaid/paycheck-spending/${uid}`)
-        if (!response.ok) throw new Error('Failed to fetch pie chart data')
-        const data = await response.json()
-        if (isMounted) {
-          setSummary(data)
-          setLoadingSummary(false)
-        }
-      } catch (error) {
-        console.error(error)
-        if (isMounted) setLoadingSummary(false)
+        const r = await fetch(`/api/plaid/paycheck-spending/${uid}`)
+        if (!r.ok) throw new Error("Summary error")
+        const d = await r.json()
+        if (mounted) setSummary(d)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        if (mounted) setLoadingSummary(false)
       }
     }
 
-    // Fetch weekly mean scores data
-    const fetchMeanScores = async () => {
-      setLoadingScores(true)
+    // ---- FETCH MEAN SCORES ----
+    const loadScores = async () => {
       try {
-        const response = await fetch(`/api/plaid/mean-spending-scores-month/${uid}`)
-        if (!response.ok) throw new Error('Failed to fetch weekly mean scores')
-        const data = await response.json()
-        if (isMounted) {
-          setMeanScores(data.mean_scores)
-          setLoadingScores(false)
-        }
-      } catch (error) {
-        console.error(error)
-        if (isMounted) setLoadingScores(false)
+        const r = await fetch(`/api/plaid/mean-spending-scores-month/${uid}`)
+        if (!r.ok) throw new Error("Scores error")
+        const d = await r.json()
+
+        if (mounted) setMeanScores(d.mean_scores ?? [])
+      } catch (err) {
+        console.error(err)
+      } finally {
+        if (mounted) setLoadingScores(false)
       }
     }
 
-    // Get transaction history for table
-    const fetchTransactionHistory = async () => {
-      setLoadingTransactions(true)
+    // ---- FETCH TRANSACTIONS ----
+    const loadTransactions = async () => {
       try {
-        const response = await fetch(`/api/plaid/transactions/${uid}`)
-        if (!response.ok) throw new Error('Failed to fetch transaction history')
-        const data = await response.json()
-        if (isMounted) {
-          setTransactions(data)
-          setLoadingTransactions(false)
-        }
-      } catch (error) {
-        console.error(error)
-        if (isMounted) setLoadingTransactions(false)
+        const r = await fetch(`/api/plaid/transactions/${uid}`)
+        if (!r.ok) throw new Error("Transaction fetch error")
+        const d = await r.json()
+
+        // IMPORTANT FIX
+        const arr = Array.isArray(d.transactions) ? d.transactions : []
+        if (mounted) setTransactions(arr)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        if (mounted) setLoadingTransactions(false)
       }
     }
 
-    if (uid) {
-      fetchPieChartData()
-      fetchMeanScores()
-      fetchTransactionHistory()
-    }
+    loadSummary()
+    loadScores()
+    loadTransactions()
 
-    return () => {
-      isMounted = false
-    }
+    return () => { mounted = false }
   }, [uid])
 
-  // Paycheck summary data preparation
-  const paycheckAmount = summary?.last_paycheck_amount ?? 0;
-  const spent = summary?.spent_since_paycheck ?? 0;
+  // -------- Prepare Chart Data --------
+  const paycheckAmount = summary?.last_paycheck_amount ?? 0
+  const spent = summary?.spent_since_paycheck ?? 0
 
-  // Line graph data preparation
-  const lineGraphData = meanScores.map((score, index) => ({
-    week: `Week ${index + 1}`,
-    score: score,
+  const lineGraphData = meanScores.map((s, i) => ({
+    week: `Week ${i + 1}`,
+    score: s
   }))
 
-  // Calculate Y-axis domain dynamically based on actual data
-  const maxScore = meanScores.length > 0 ? Math.max(...meanScores) : 100;
-  const yAxisMax = Math.ceil(maxScore / 10) * 10 + 10;
+  const yAxisMax = meanScores.length > 0
+    ? Math.ceil(Math.max(...meanScores) / 10) * 10 + 10
+    : 100
 
-  const handleTransactionClick = (_transaction_id: string) => {
-    // Fetch transaction details based on transaction_id
+  const handleTransactionClick = (_id: string) => {
     setSelectedScore(87)
-    setSelectedDescription('Sample description for the score.')
-    setSelectedReasons('Sample reasons for the score.')
+    setSelectedReasons("Sample reasons")
+    setSelectedDescription("Sample description")
     setIsModalOpen(true)
   }
 
   return (
     <Box minH="100vh" w="100vw" bg="gray.950" overflow="hidden">
-      {/* Pill Navigation - Centered */}
-      <Box 
-        bg="gray.900" 
-        borderBottom="1px solid" 
+
+      {/* NAV */}
+      <Box
+        bg="gray.900"
+        borderBottom="1px solid"
         borderColor="gray.800"
         display="flex"
         justifyContent="center"
@@ -135,9 +126,8 @@ function dashboard() {
             { label: 'Dashboard', href: '/dashboard' },
             { label: 'Purchase Analyzer', href: '/analyze' },
             { label: 'Sign Out', href: '/' },
-          ]} 
+          ]}
           activeHref='/dashboard'
-          className='custom-nav'
           baseColor='#111827'
           pillColor='#2563eb'
           hoveredPillTextColor='#f3f4f6'
@@ -145,156 +135,93 @@ function dashboard() {
         />
       </Box>
 
-      {/* Charts Section - Responsive Grid */}
-      <Box 
-        display="grid" 
+      {/* CHART GRID */}
+      <Box
+        display="grid"
         gridTemplateColumns={{ base: '1fr', lg: '1fr 1fr' }}
         gap={0}
-        borderBottom="1px solid" 
+        borderBottom="1px solid"
         borderColor="gray.800"
       >
-        {/* Pie Chart */}
+        {/* PIE CHART */}
         <Box
           bg="gray.900"
-          borderRight={{ base: 'none', lg: '1px solid' }}
-          borderColor="gray.800"
+          minH="500px"
           display="flex"
           alignItems="center"
           justifyContent="center"
-          minH="500px"
-          p={8}
+          borderRight={{ base: 'none', lg: '1px solid' }}
+          borderColor="gray.800"
         >
           {loadingSummary ? (
-            <VStack gap={4}>
-              <Spinner size="xl" color="blue.500" borderWidth="4px" />
-              <Text color="gray.400" fontSize="lg">Loading paycheck data...</Text>
+            <VStack>
+              <Spinner size="xl" />
+              <Text color="gray.400">Loading paycheck data...</Text>
             </VStack>
           ) : (
-            <PaycheckDonut 
-              donutData={summary ? {
-                last_paycheck_date: summary.last_paycheck_date,
+            <PaycheckDonut
+              donutData={{
+                last_paycheck_date: summary?.last_paycheck_date ?? "Unknown",
                 amount: paycheckAmount,
                 spent: spent,
                 width: 400,
                 height: 400
-              } : undefined} 
+              }}
             />
           )}
         </Box>
 
-        {/* Line Graph */}
+        {/* LINE CHART */}
         <Box
           bg="gray.900"
+          minH="500px"
           display="flex"
           alignItems="center"
           justifyContent="center"
-          minH="500px"
           p={8}
         >
           {loadingScores ? (
-            <VStack gap={4}>
-              <Spinner size="xl" color="blue.500" borderWidth="4px" />
-              <Text color="gray.400" fontSize="lg">Loading score trends...</Text>
+            <VStack>
+              <Spinner size="xl" />
+              <Text color="gray.400">Loading score trends...</Text>
             </VStack>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={lineGraphData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="week" 
-                  stroke="#9ca3af"
-                  style={{ fontSize: '14px' }}
-                />
-                <YAxis 
-                  domain={[0, yAxisMax]} 
-                  stroke="#9ca3af"
-                  style={{ fontSize: '14px' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1f2937', 
-                    border: '1px solid #374151',
-                    borderRadius: '6px',
-                    color: '#f3f4f6'
-                  }}
-                />
-                <Legend 
-                  wrapperStyle={{ color: '#f3f4f6' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="score" 
-                  name="Weekly Average Score"
-                  stroke="#14b8a6" 
-                  strokeWidth={3}
-                  dot={{ fill: '#14b8a6', r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
+                <XAxis dataKey="week" stroke="#9ca3af" />
+                <YAxis domain={[0, yAxisMax]} stroke="#9ca3af" />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="score" stroke="#14b8a6" strokeWidth={3} />
               </LineChart>
             </ResponsiveContainer>
           )}
         </Box>
       </Box>
 
-      {/* Recent Transactions Table */}
-      <VStack align="stretch" p={0} gap={0}>
+      {/* TRANSACTIONS TABLE */}
+      <VStack align="stretch">
         <Box bg="blue.600" w="full" py={4} px={8}>
-          <Heading
-            size="lg"
-            color="white"
-            fontWeight="bold"
-          >
-            Recent Transactions
-          </Heading>
+          <Heading size="lg" color="white">Recent Transactions</Heading>
         </Box>
 
         {loadingTransactions ? (
-          <Box bg="gray.900" minH="400px" display="flex" alignItems="center" justifyContent="center">
-            <VStack gap={4}>
-              <Spinner size="xl" color="blue.500" borderWidth="4px" />
-              <Text color="gray.400" fontSize="lg">Loading transactions...</Text>
-            </VStack>
+          <Box bg="gray.900" minH="400px" display="flex" justifyContent="center" alignItems="center">
+            <Spinner size="xl" />
           </Box>
         ) : (
           <Box bg="gray.950" p={6}>
-            {/* Table Header */}
-            <HStack
-              gap={0}
-              bg="gray.800"
-              borderRadius="md"
-              borderWidth="1px"
-              borderColor="gray.700"
-              mb={2}
-              p={4}
-            >
-              <Box flex={1}>
-                <Text fontSize="sm" fontWeight="bold" color="gray.300">DATE</Text>
-              </Box>
-              <Box flex={2}>
-                <Text fontSize="sm" fontWeight="bold" color="gray.300">MERCHANT</Text>
-              </Box>
-              <Box flex={2}>
-                <Text fontSize="sm" fontWeight="bold" color="gray.300">CATEGORY</Text>
-              </Box>
-              <Box flex={1} textAlign="right">
-                <Text fontSize="sm" fontWeight="bold" color="gray.300">AMOUNT</Text>
-              </Box>
-              <Box flex={1} textAlign="right">
-                <Text fontSize="sm" fontWeight="bold" color="gray.300">SCORE</Text>
-              </Box>
-            </HStack>
-
-            {/* Animated Transaction Rows */}
             <VStack gap={2} align="stretch">
-              {transactions.map((transaction, index) => (
+              {transactions.map((tx, index) => (
                 <HStack
-                  key={transaction.transaction_id}
-                  gap={0}
+                  key={tx.transaction_id ?? index}
                   bg="gray.900"
-                  borderRadius="md"
-                  borderWidth="1px"
+                  border="1px solid"
                   borderColor="gray.800"
                   p={4}
+                  borderRadius="md"
+                  onClick={() => handleTransactionClick(tx.transaction_id)}
                   cursor="pointer"
                   transition="all 0.2s"
                   _hover={{ 
@@ -302,42 +229,23 @@ function dashboard() {
                     borderColor: "blue.500",
                     transform: "translateX(4px)"
                   }}
-                  onClick={() => handleTransactionClick(transaction.transaction_id)}
-                  style={{
-                    animation: `slideIn 0.3s ease-out ${index * 0.05}s both`
-                  }}
                 >
-                  <Box flex={1}>
-                    <Text fontSize="md" color="gray.100">{transaction.date}</Text>
-                  </Box>
-                  <Box flex={2}>
-                    <Text fontSize="md" fontWeight="semibold" color="gray.100">
-                      {transaction.merchant}
-                    </Text>
-                  </Box>
-                  <Box flex={2}>
-                    <Text fontSize="sm" color="gray.400">
-                      {Array.isArray(transaction.category) 
-                        ? transaction.category.join(', ') 
-                        : transaction.category}
-                    </Text>
-                  </Box>
+                  <Box flex={1}><Text color="gray.100">{tx.date}</Text></Box>
+                  <Box flex={2}><Text color="gray.100">{tx.merchant || tx.name}</Text></Box>
+                  <Box flex={2}><Text color="gray.400">{tx.category?.join(", ")}</Text></Box>
                   <Box flex={1} textAlign="right">
-                    <Text fontSize="md" fontWeight="bold" color="gray.100">
-                      ${Math.abs(transaction.amount).toFixed(2)}
-                    </Text>
+                    <Text color="gray.100">${Math.abs(tx.amount).toFixed(2)}</Text>
                   </Box>
                   <Box flex={1} textAlign="right">
                     <Text 
-                      fontSize="md" 
-                      fontWeight="bold"
                       color={
-                        transaction.score >= 70 ? "green.400" : 
-                        transaction.score >= 40 ? "yellow.400" : 
+                        tx.score >= 70 ? "green.400" : 
+                        tx.score >= 40 ? "yellow.400" : 
                         "red.400"
                       }
+                      fontWeight="bold"
                     >
-                      {transaction.score ?? 'N/A'}
+                      {tx.score ?? 'N/A'}
                     </Text>
                   </Box>
                 </HStack>
@@ -347,29 +255,15 @@ function dashboard() {
         )}
       </VStack>
 
-      <ScoreModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        score={selectedScore} 
-        reasons={selectedReasons} 
-        description={selectedDescription} 
+      <ScoreModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        score={selectedScore}
+        reasons={selectedReasons}
+        description={selectedDescription}
       />
-
-      {/* Add CSS animation */}
-      <style>{`
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
     </Box>
   )
 }
 
-export default dashboard
+export default Dashboard

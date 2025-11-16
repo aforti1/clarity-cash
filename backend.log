@@ -1,6 +1,12 @@
 INFO:     Will watch for changes in these directories: ['/mnt/c/Users/jairi/OneDrive/Desktop/Repos/clarity-cash']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [88536] using statreload
-INFO:     Started server process [88562]
+INFO:     Started reloader process [102561] using statreload
+INFO:     Started server process [102583]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
+INFO:     127.0.0.1:56574 - "GET /plaid/paycheck-spending/KU45lK67ntSOnrVZNwAmxyUS2ps2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56588 - "GET /plaid/mean-spending-scores-month/KU45lK67ntSOnrVZNwAmxyUS2ps2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56598 - "GET /plaid/transactions/KU45lK67ntSOnrVZNwAmxyUS2ps2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56604 - "GET /plaid/paycheck-spending/KU45lK67ntSOnrVZNwAmxyUS2ps2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56614 - "GET /plaid/transactions/KU45lK67ntSOnrVZNwAmxyUS2ps2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56610 - "GET /plaid/mean-spending-scores-month/KU45lK67ntSOnrVZNwAmxyUS2ps2 HTTP/1.1" 200 OK
