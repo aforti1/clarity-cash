@@ -7,3 +7,9 @@ frontend.log
 backend.pid
 backend.log
 backend.log
+.env
+.env
+key.json
+keys.json
+Key.json
+Keys.json
