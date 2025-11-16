@@ -16,13 +16,13 @@ function App() {
 
   // Instantiate Firebase Auth (safe public keys)
   const firebaseConfig = {
-  apiKey: "AIzaSyBI_GOh1r_NMjZS36VBH1ZJ_lDLwD8oNVY",
-  authDomain: "claritycashaf.firebaseapp.com",
-  projectId: "claritycashaf",
-  storageBucket: "claritycashaf.firebasestorage.app",
-  messagingSenderId: "1035015535362",
-  appId: "1:1035015535362:web:9ab598b6be2fd19ba6601b",
-  measurementId: "G-SVJMXW01DF"
+    apiKey: "AIzaSyBI_GOh1r_NMjZS36VBH1ZJ_lDLwD8oNVY",
+    authDomain: "claritycashaf.firebaseapp.com",
+    projectId: "claritycashaf",
+    storageBucket: "claritycashaf.firebasestorage.app",
+    messagingSenderId: "1035015535362",
+    appId: "1:1035015535362:web:9ab598b6be2fd19ba6601b",
+    measurementId: "G-SVJMXW01DF"
   };
 
   // Initialize Firebase
