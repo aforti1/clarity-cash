@@ -3,11 +3,15 @@
 > vite
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
   VITE v7.2.2  ready in 2055 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: http://172.20.2.83:5173/
+=======
+sh: vite: command not found
+>>>>>>> Stashed changes
 =======
 sh: vite: command not found
 >>>>>>> Stashed changes

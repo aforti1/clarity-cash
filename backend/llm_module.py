@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import os
 import requests
 hf_token = get_hf_token()  # ensures the token is loaded early
@@ -30,6 +31,29 @@ def generate_suggestion(prompt: str, max_tokens: int = 100) -> str:
 # -----------------------------
 # Gemini transaction suggestion
 # -----------------------------
+=======
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import os
+
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "clarity_llm")
+print(f"Loading model from: {MODEL_PATH}")
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, local_files_only=True)
+model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, local_files_only=True)
+
+def generate_suggestion(prompt: str, max_tokens: int = 100) -> str:
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=max_tokens,
+        do_sample=True,
+        temperature=0.7,
+        top_p=0.9
+    )
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+>>>>>>> Stashed changes
 def generate_gemini_suggestion(
     transaction_name: str,
     transaction_amount: float,
@@ -51,6 +75,7 @@ Generate:
 1. Up to 3 cheaper alternatives (Gemini options) with price and short explanation.
 2. One micro-action to optimize user's spending related to this transaction.
 3. Keep the tone friendly, concise, and playful. Include emoji if appropriate.
+<<<<<<< Updated upstream
 """
     payload = {"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}
     response = requests.post(
@@ -65,3 +90,20 @@ Generate:
     except (KeyError, IndexError):
         return "No suggestion generated."
 
+=======
+Format:
+- Gemini Option 1: ...
+- Gemini Option 2: ...
+- Gemini Option 3: ...
+- Micro-Action: ...
+"""
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=max_tokens,
+        do_sample=True,
+        temperature=0.7,
+        top_p=0.9
+    )
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+>>>>>>> Stashed changes

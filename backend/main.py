@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -17,6 +18,16 @@ from plaid.model.country_code import CountryCode
 
 from pydantic import BaseModel
 from .llm_module import generate_gemini_suggestion, generate_suggestion
+=======
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from llm_module import generate_gemini_suggestion, generate_suggestion
+from resolve_env import get_firebase_creds, get_plaid_client_id, get_plaid_sandbox_secret
+
+app = FastAPI(title="Clarity Cash LLM API")
+
+
+>>>>>>> Stashed changes
 
 hf_token = get_hf_token()
 
@@ -130,9 +141,14 @@ def get_plaid_accounts(access_token: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+<<<<<<< Updated upstream
 # -----------------------------
 # Gemini endpoint (hosted LLM)
 # -----------------------------
+=======
+
+# Request body for Gemini
+>>>>>>> Stashed changes
 class GeminiRequest(BaseModel):
     transaction_name: str
     transaction_amount: float
@@ -142,7 +158,10 @@ class GeminiRequest(BaseModel):
 @app.post("/gemini-suggestion")
 def gemini_suggestion(request: GeminiRequest):
     try:
+<<<<<<< Updated upstream
         print(f"[LLM] Generating Gemini suggestion for {request.transaction_name} (${request.transaction_amount})")
+=======
+>>>>>>> Stashed changes
         suggestion = generate_gemini_suggestion(
             transaction_name=request.transaction_name,
             transaction_amount=request.transaction_amount,
@@ -153,15 +172,20 @@ def gemini_suggestion(request: GeminiRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+<<<<<<< Updated upstream
 # -----------------------------
 # General LLM endpoint
 # -----------------------------
+=======
+# General LLM endpoint
+>>>>>>> Stashed changes
 class LLMRequest(BaseModel):
     prompt: str
 
 @app.post("/llm-suggestion")
 def llm_suggestion(request: LLMRequest):
     try:
+<<<<<<< Updated upstream
         print(f"[LLM] Generating general suggestion for prompt: {request.prompt[:50]}...")
         suggestion = generate_suggestion(request.prompt)
         return {"suggestion": suggestion}
@@ -173,3 +197,9 @@ if private_key is None:
     raise ValueError("FIREBASE_PRIVATE_KEY is not set in environment variables")
 private_key = private_key.replace("\\n", "\n")  # Move this after the None check
 print("Firebase private key loaded successfully.")
+=======
+        suggestion = generate_suggestion(request.prompt)
+        return {"suggestion": suggestion}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+>>>>>>> Stashed changes
