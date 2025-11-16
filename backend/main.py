@@ -122,6 +122,7 @@ def exchange_sandbox_public_token(req: TokenExchangeRequest = Body(...)):
         print(f"[ERROR] Token exchange failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
+# Just for testing
 @app.get("/plaid/accounts/{access_token}")
 def get_plaid_accounts(access_token: str):
     """Fetch accounts associated with a given Plaid access token."""
@@ -129,5 +130,131 @@ def get_plaid_accounts(access_token: str):
         request = plaid_api.AccountsGetRequest(access_token=access_token)
         response = plaid_client.accounts_get(request)
         return response.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Class for populating paycheck spending graph
+class paycheckSpending(BaseModel):
+    last_paycheck_amount: float
+    last_paycheck_date: str
+    transactions: list
+# TODO TODO TODO SAMPLE LOGIC FILL IN
+@app.get("/plaid/paycheck-spending/{uid}")
+def get_paycheck_spending(uid: str):
+    """Fetch paycheck spending data for a user."""
+    try:
+        # Fetch user's access token from Firestore
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="User not found in Firestore")
+        
+        access_token = user_doc.to_dict().get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=404, detail="Access token not found for user")
+        
+        # Fetch transactions from Plaid
+        request = TransactionsGetRequest(
+            access_token=access_token,
+            start_date="2023-01-01",
+            end_date="2023-12-31"
+        )
+        response = plaid_client.transactions_get(request)
+        transactions = response.to_dict().get("transactions", [])
+        
+        # Dummy logic to calculate paycheck spending (to be replaced with real logic)
+        last_paycheck_amount = 2000.0  # Placeholder
+        last_paycheck_date = "2023-09-15"  # Placeholder
+        
+        return {
+            "last_paycheck_amount": last_paycheck_amount,
+            "last_paycheck_date": last_paycheck_date,
+            "transactions": transactions
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# Class for each transaction
+class Transaction(BaseModel):
+    date: str,
+    merchant: str,
+    category: list,
+    amount: float,
+    score: float,
+    pending: bool
+# TODO TODO TODO SAMPLE LOGIC FILL IN
+@app.get("/plaid/transactions/{uid}")
+def get_user_transactions(uid: str):
+    # Fetch the user's access token from Firestore
+    try:
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="User not found in Firestore")
+        
+        access_token = user_doc.to_dict().get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=404, detail="Access token not found for user")
+        
+        # Fetch transactions from Plaid
+        request = TransactionsGetRequest(
+            access_token=access_token,
+            # TODO change basic boilerplate
+            start_date="2023-01-01",
+            end_date="2023-12-31"
+        )
+        response = plaid_client.transactions_get(request)
+        transactions = response.to_dict().get("transactions", [])
+        
+        return {"transactions": transactions}
+
+# Class for 7-day mean spending score over the past month
+class SpendingScore(BaseModel):
+    dates: list
+    scores: list
+# TODO TODO TODO SAMPLE LOGIC FILL IN
+@app.get("/plaid/mean-spending-scores-month/{uid}")
+def get_mean_spending_scores_month(uid: str):
+    """Fetch 7-day mean spending scores over the past month for a user."""
+    try:
+        # Fetch user's access token from Firestore
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="User not found in Firestore")
+        
+        access_token = user_doc.to_dict().get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=404, detail="Access token not found for user")
+        
+        # Fetch transactions from Plaid
+        request = TransactionsGetRequest(
+            access_token=access_token,
+            start_date="2023-01-01",
+            end_date="2023-12-31"
+        )
+        response = plaid_client.transactions_get(request)
+        transactions = response.to_dict().get("transactions", [])
+        
+        # Dummy logic to calculate mean spending scores (to be replaced with real logic)
+        dates = ["2023-09-01", "2023-09-02", "2023-09-03"]  # Placeholder
+        scores = [75.0, 80.0, 78.0]  # Placeholder
+        
+        return {
+            "dates": dates,
+            "scores": scores
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/plaid/transaction-score/")
+def score_transaction(transaction: Transaction):
+    """Score a single transaction based on custom logic."""
+    try:
+        # TODO TODO TODO Dummy scoring logic (to be replaced with real logic)
+        score = 100.0 - (transaction.amount / 10.0)  # Placeholder logic
+        
+        # TODO LLM LOGIC HERE (Generating Description/Reccomendations)
+        return {"transaction": transaction, "score": score}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
