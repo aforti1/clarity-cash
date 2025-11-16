@@ -67,22 +67,3 @@ def compute_context_features(txns, cfg, start_date, end_date):
 		"core_flex_share": float(core_flex_share),
 		"other_flex_share": float(other_flex_share),
 	}
-
-#sample main
-def main():
-	config = load_category_config("C:/Users/anye forti/Desktop/Projects/clarity-cash/backend/data/category_scoring_config.xlsx")
-
-	transactions = pd.DataFrame([
-		{"date": "2025-10-01", "amount": -2000.00, "CAT_ID":  506},  # paycheck (income)
-		{"date": "2025-10-02", "amount":  1000.00, "CAT_ID":  600},  # rent
-		{"date": "2025-10-03", "amount":   120.50, "CAT_ID":  540},  # groceries
-		{"date": "2025-10-04", "amount":    45.00, "CAT_ID":  588},  # gas
-		{"date": "2025-10-05", "amount":    35.00, "CAT_ID":  525},  # bank fee
-	])
-
-	ctx = compute_context_features(transactions, config, pd.Timestamp("2025-10-01"), pd.Timestamp("2025-10-06"))
-
-	print(ctx)
-
-if __name__ == "__main__":
-	main()
