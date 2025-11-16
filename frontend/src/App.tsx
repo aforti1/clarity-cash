@@ -19,6 +19,7 @@ function App() {
             size="lg"
             bg="gray.200"
             border="none"
+            color="black"
             _placeholder={{ color: "gray.700" }}
           />
           
@@ -28,6 +29,7 @@ function App() {
             size="lg"
             bg="gray.200"
             border="none"
+            color ="black"
             _placeholder={{ color: "gray.700" }}
           />
           
