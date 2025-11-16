@@ -6,11 +6,11 @@ import requests
 # Hugging Face model config
 # -----------------------------
 HF_MODEL = "your-username/clarity_llm"  # Replace with your hosted model repo
-HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
-if not HF_API_TOKEN:
-    raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
+# HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
+# if not HF_API_TOKEN:
+#     raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
 
-HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+# HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
 
 # -----------------------------
 # General LLM suggestion

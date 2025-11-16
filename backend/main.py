@@ -32,9 +32,9 @@ from collections import defaultdict
 # -----------------------------
 # Hugging Face token check
 # -----------------------------
-HF_API_TOKEN = get_hf_token()
-if not HF_API_TOKEN:
-    raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
+# HF_API_TOKEN = get_hf_token()
+# if not HF_API_TOKEN:
+#     raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
 
 # -----------------------------
 # Firebase setup
@@ -57,8 +57,8 @@ plaid_secrets = get_plaid_secrets()
 configuration = plaid.Configuration(
     host=plaid.Environment.Sandbox,
     api_key={
-        "clientId": plaid_secrets["PLAID_CLIENT_ID"],
-        "secret": plaid_secrets["PLAID_SANDBOX_SECRET"]
+        "clientId": plaid_secrets["client_id"],
+        "secret": plaid_secrets["sandbox_secret"]
     }
 )
 plaid_client = plaid_api.PlaidApi(plaid.ApiClient(configuration))
@@ -265,12 +265,12 @@ def get_paycheck_spending(uid: str):
     
 # Class for each transaction
 class Transaction(BaseModel):
-    transaction_id: str,
-    date: str,
-    merchant: str,
-    category: list,
-    amount: float,
-    score: float,
+    transaction_id: str
+    date: str
+    merchant: str
+    category: list
+    amount: float
+    score: float
     pending: bool
 
 @app.get("/plaid/transactions/{uid}")
@@ -291,8 +291,8 @@ def get_user_transactions(uid: str):
         # Fetch transactions from Plaid (last 10 weeks as example)
         request = TransactionsGetRequest(
             access_token=access_token,
-            start_date=end_date_today,
-            end_date=start_date
+            start_date=start_date,
+            end_date=end_date_today
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
@@ -305,6 +305,9 @@ def get_user_transactions(uid: str):
             txn["score"] = round(score, 2)
         
         return {"transactions": transactions}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Class for 7-day mean spending score over the past month
 class SpendingScore(BaseModel):
@@ -332,13 +335,16 @@ def get_mean_spending_scores_month(uid: str):
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
         
+        # Convert start_date string to datetime for calculations
+        start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        
         # Group transactions by week and calculate scores
         weekly_data = defaultdict(lambda: {"total_amount": 0, "count": 0})
         
         for txn in transactions:
             txn_date = datetime.strptime(txn["date"], "%Y-%m-%d")
             # Calculate week number (0-9) from start_date
-            days_from_start = (txn_date - start_date).days
+            days_from_start = (txn_date - start_date_dt).days
             week_num = days_from_start // 7
             
             if 0 <= week_num < 10:  # Only include transactions within 10 weeks
@@ -353,7 +359,7 @@ def get_mean_spending_scores_month(uid: str):
         scores = []
         
         for week in range(10):
-            week_start_date = start_date + timedelta(weeks=week)
+            week_start_date = start_date_dt + timedelta(weeks=week)
             dates.append(week_start_date.strftime("%Y-%m-%d"))
             
             # TODO TODO TODO RESOLVE THIS WITH REAL SCORES
@@ -392,7 +398,7 @@ class TransactionDescription(BaseModel):
     description: str  # LLM Generated
     recommendations: list  # LLM Generated
 
-@app.get("/plaid/transaction-description/${uid}/{transaction_id}")
+@app.get("/plaid/transaction-description/{uid}/{transaction_id}")
 def get_transaction_description(uid: str, transaction_id: str):
     """Fetch score and LLM-generated description + recommendations for a transaction."""
     try:
