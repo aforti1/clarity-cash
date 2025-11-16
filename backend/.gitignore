@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+serviceAccountKey.json
+*.pem
+*.p8
