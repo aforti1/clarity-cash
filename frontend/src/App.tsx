@@ -1,3 +1,5 @@
+/* Login/Plaid Connection Page */
+
 import { Box, Button, Heading, Input, VStack, Text } from '@chakra-ui/react'
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
@@ -5,6 +7,9 @@ import { useFirebaseAuth } from './context/FirebaseProvider'
 import { useNavigate } from 'react-router-dom'
 import { PlaidAutoLauncher } from './components/PlaidAutoLauncher'
 import { useState } from 'react'
+import LiquidEther from './components/LiquidEther'
+import TextType from './components/TextType'
+import { Subtitle } from './components/Subtitle'
 import './App.css'
 
 function App() {
@@ -84,43 +89,80 @@ function App() {
   }
 
   return (
-    <Box minH="100vh" w="100vw"bg="white" display="flex" alignItems="center" justifyContent="center">
-      <VStack gap={8} w="full" maxW="400px" p={4}>
-        <Heading size="2xl" color="gray.700" textAlign="center">
-          ClarityCash
-        </Heading>
-        
-        <Text color="gray.600" textAlign="center" fontSize="md">
-          Smarter spending decisions powered by real-time purchase analysis.
-        </Text>
-        
-        <VStack gap={4} w="full" maxW="350px" mt={6} alignItems="stretch">
+    <Box position="relative" minH="100vh" w="100vw" bg="gray.950" display="flex" alignItems="center" justifyContent="center">
+      {/* Background */}
+      <Box position="absolute" inset="0" zIndex={0}>
+        <LiquidEther
+          colors={['#5227FF', '#FF9FFC', '#B19EEF']}
+          mouseForce={20}
+          cursorSize={100}
+          isViscous={false}
+          viscous={30}
+          iterationsViscous={32}
+          iterationsPoisson={32}
+          resolution={0.5}
+          isBounce={false}
+          autoDemo={true}
+          autoSpeed={0.5}
+          autoIntensity={2.2}
+          takeoverDuration={0.1}
+          autoResumeDelay={3000}
+          autoRampDuration={0.4}
+        />
+      </Box>
+
+      {/* Content */}
+      <VStack gap={12} w="full" maxW="1200px" p={8} position="relative" zIndex={1} alignItems="center">
+        <Box textAlign="center">
+          <TextType text={["Welcome to ClarityCash!"]} typingSpeed={50} pauseDuration={10000} showCursor={true} cursorCharacter="|" className="text-8xl mb-8" />
+        </Box>
+
+        <Subtitle />
+
+        <VStack gap={6} w="full" maxW="850px" mt={8} alignItems="stretch">
           <Input
-            placeholder="Email:"
+            placeholder="Email:"  // Large area for expansion - include different kinds of login methods
             size="lg"
-            bg="gray.200"
-            border="none"
-            color="black"
-            _placeholder={{ color: "gray.700" }}
+            h="64px"
+            fontSize="xl"
+            px={6}
+            bg="gray.900"
+            borderColor="gray.800"
+            borderWidth="1px"
+            color="gray.100"
+            _placeholder={{ color: "gray.500", fontSize: "xl" }}
+            _hover={{ borderColor: "gray.700" }}
+            _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 2px var(--chakra-colors-blue-500)" }}
           />
-          
+
           <Input
             type="password"
             placeholder="Password:"
             size="lg"
-            bg="gray.200"
-            border="none"
-            color ="black"
-            _placeholder={{ color: "gray.700" }}
+            h="64px"
+            fontSize="xl"
+            px={6}
+            bg="gray.900"
+            borderColor="gray.800"
+            borderWidth="1px"
+            color="gray.100"
+            _placeholder={{ color: "gray.500", fontSize: "xl" }}
+            _hover={{ borderColor: "gray.700" }}
+            _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 2px var(--chakra-colors-blue-500)" }}
           />
-          
+
           <Button
-            bg="gray.300"
+            bg="blue.600"
+            color="white"
             size="lg"
             w="auto"
-            px={12}
-            mt={2}
-            _hover={{ bg: "gray.400" }}
+            px={20}
+            py={6}
+            mt={4}
+            fontSize="2xl"
+            borderRadius="md"
+            _hover={{ bg: "blue.700" }}
+            _active={{ bg: "blue.800" }}
             onClick={onLogin}
           >
             Login

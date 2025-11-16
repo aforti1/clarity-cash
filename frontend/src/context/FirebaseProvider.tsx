@@ -12,7 +12,7 @@ export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     useEffect(() => {
         const auth = getAuth();
-        const unsubscribe = onAuthStateChanged(auth, (user: { uid: any; }) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUid(user?.uid ?? null);
         });
         return () => unsubscribe();

@@ -5,9 +5,10 @@ interface ScoreModalProps {
     onClose: () => void
     score: number
     reasons: string
+    description: string
 }
 
-function ScoreModal({ isOpen, onClose, score, reasons }: ScoreModalProps) {
+function ScoreModal({ isOpen, onClose, score, reasons, description }: ScoreModalProps) {
     if (!isOpen) return null
 
     return (
@@ -30,14 +31,16 @@ function ScoreModal({ isOpen, onClose, score, reasons }: ScoreModalProps) {
                 top="50%"
                 left="50%"
                 transform="translate(-50%, -50%)"
-                bg="white"
+                bg="gray.900"
                 w="90%"
                 maxW="800px"
                 maxH="90vh"
                 zIndex={1000}
                 borderRadius="md"
                 boxShadow="xl"
-                overflow="hidden"
+                border="1px solid"
+                borderColor="gray.800"
+                overflow="auto"
             >
                 {/* Close Button */}
                 <Button
@@ -49,6 +52,8 @@ function ScoreModal({ isOpen, onClose, score, reasons }: ScoreModalProps) {
                     fontSize="2xl"
                     fontWeight="bold"
                     p={2}
+                    color="gray.100"
+                    _hover={{ bg: "gray.800" }}
                 >
                     X
                 </Button>
@@ -57,7 +62,7 @@ function ScoreModal({ isOpen, onClose, score, reasons }: ScoreModalProps) {
                 <VStack gap={8} p={12} pt={16} alignItems="stretch">
                     {/* Score Slider Section */}
                     <VStack alignItems="stretch" gap={4}>
-                        <Text fontSize="4xl" fontWeight="bold" color="gray.700">
+                        <Text fontSize="4xl" fontWeight="bold" color="gray.100">
                             Score
                         </Text>
 
@@ -65,7 +70,7 @@ function ScoreModal({ isOpen, onClose, score, reasons }: ScoreModalProps) {
                             {/* Slider Line */}
                             <Box
                                 h="2px"
-                                bg="gray.800"
+                                bg="gray.700"
                                 position="relative"
                                 my={4}
                             >
@@ -77,36 +82,60 @@ function ScoreModal({ isOpen, onClose, score, reasons }: ScoreModalProps) {
                                     transform="translate(-50%, -50%)"
                                     w="20px"
                                     h="20px"
-                                    bg="gray.400"
+                                    bg="blue.500"
                                     borderRadius="full"
                                 />
                             </Box>
 
                             {/* 0 and 100 labels */}
-                            {/* 0 and 100 labels */}
                             <Box display="flex" justifyContent="space-between" mt={2}>
-                                <Text fontSize="3xl" fontWeight="bold" color="black">0</Text>
-                                <Text fontSize="3xl" fontWeight="bold" color="black">100</Text>
+                                <Text fontSize="3xl" fontWeight="bold" color="gray.100">0</Text>
+                                <Text fontSize="3xl" fontWeight="bold" color="gray.100">100</Text>
                             </Box>
                         </Box>
                     </VStack>
 
                     {/* Divider */}
-                    <Box h="1px" bg="gray.300" />
+                    <Box h="1px" bg="gray.800" />
+
+                    {/* Description Section */}
+                    <VStack alignItems="stretch" gap={4}>
+                        <Text fontSize="4xl" fontWeight="bold" color="gray.100">
+                            Description
+                        </Text>
+
+                        <Box
+                            bg="gray.800"
+                            p={6}
+                            minH="150px"
+                            borderRadius="md"
+                            border="1px solid"
+                            borderColor="gray.700"
+                        >
+                            <Text fontSize="lg" color="gray.100" whiteSpace="pre-wrap">
+                                {description || 'No description available.'}
+                            </Text>
+                        </Box>
+                    </VStack>
+
+                    {/* Divider */}
+                    <Box h="1px" bg="gray.800" />
 
                     {/* Reasons Section */}
                     <VStack alignItems="stretch" gap={4}>
-                        <Text fontSize="4xl" fontWeight="bold" color="gray.700">
+                        <Text fontSize="4xl" fontWeight="bold" color="gray.100">
                             Reasons
                         </Text>
 
                         <Box
-                            bg="gray.200"
+                            bg="gray.800"
                             p={6}
                             minH="300px"
                             borderRadius="md"
+                            border="1px solid"
+                            borderColor="gray.700"
                         >
-                            <Text fontSize="lg" color="black" whiteSpace="pre-wrap">
+                            <Text fontSize="lg" color="gray.100" whiteSpace="pre-wrap">
                                 {reasons}
                             </Text>
                         </Box>
