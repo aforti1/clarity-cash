@@ -4,3 +4,7 @@ python-dotenv
 requests
 firebase-admin
 plaid-python
+transformers
+torch
+
+

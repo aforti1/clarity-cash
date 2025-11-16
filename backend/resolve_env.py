@@ -1,26 +1,27 @@
-# Helpers to resolve environment variables
-
-from dotenv import load_dotenv
+# backend/resolve_env.py
 import os
+from dotenv import load_dotenv
 
-def get_plaid_client_id() -> str:
-    """Retrieve the Nessie API key from environment variables."""
-    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))  # Load environment variables from .env file
-    return os.getenv("PLAID_CLIENT_ID")
+# Load environment variables from .env
+load_dotenv()
 
-def get_plaid_sandbox_secret() -> str:
-    """Retrieve the Nessie API key from environment variables."""
-    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))  # Load environment variables from .env file
-    return os.getenv("PLAID_SANDBOX_SECRET")
-
+# -----------------------------
+# Firebase credentials
+# -----------------------------
 def get_firebase_creds() -> dict:
-    """Retrieve the Firebase credentials from environment variables."""
-    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))  # Load environment variables from .env file
-    firebase_creds = {
+    """
+    Returns Firebase service account credentials as a dict.
+    Ensures the private key newline characters are correctly formatted.
+    """
+    private_key = os.getenv("FIREBASE_PRIVATE_KEY")
+    if private_key is None:
+        raise ValueError("FIREBASE_PRIVATE_KEY not set in environment variables")
+
+    return {
         "type": os.getenv("FIREBASE_TYPE"),
         "project_id": os.getenv("FIREBASE_PROJECT_ID"),
         "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
-        "private_key": os.getenv("FIREBASE_PRIVATE_KEY").replace("\\n", "\n"),
+        "private_key": private_key.replace("\\n", "\n"),
         "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
         "client_id": os.getenv("FIREBASE_CLIENT_ID"),
         "auth_uri": os.getenv("FIREBASE_AUTH_URI"),
@@ -29,4 +30,28 @@ def get_firebase_creds() -> dict:
         "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_CERT_URL"),
         "universe_domain": os.getenv("FIREBASE_UNIVERSE_DOMAIN"),
     }
-    return firebase_creds
+
+# -----------------------------
+# Plaid credentials
+# -----------------------------
+def get_plaid_secrets():
+    return {
+        "client_id": os.getenv("PLAID_CLIENT_ID"),
+        "sandbox_secret": os.getenv("PLAID_SANDBOX_SECRET"),
+        "env": os.getenv("PLAID_ENV")
+    }
+
+def get_hf_token():
+    token = os.getenv("HF_API_TOKEN")
+    if token is None:
+        raise ValueError("HF_API_TOKEN not set in environment variables")
+    return token
+
+# -----------------------------
+# Hugging Face API token
+# -----------------------------
+def get_hf_token():
+    token = os.getenv("HF_API_TOKEN")
+    if token is None:
+        raise ValueError("HF_API_TOKEN not set in environment variables")
+    return token
