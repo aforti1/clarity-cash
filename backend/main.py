@@ -92,9 +92,13 @@ def get_access_token_from_uid(uid: str) -> str:
     
 # Helper to get date ranges in standardized format
 def get_time_date_range(range_weeks: int = 10):
+    """
+    Returns (end_date, start_date) as datetime.date objects.
+    end_date = today, start_date = end_date - range_weeks
+    """
     end_date = date.today()
     start_date = end_date - timedelta(weeks=range_weeks)
-    return end_date.strftime("%Y-%m-%d"), start_date.strftime("%Y-%m-%d")
+    return end_date, start_date
 
 # -----------------------------
 # Basic routes
@@ -229,13 +233,13 @@ def get_paycheck_spending(uid: str):
         # Fetch transactions from Plaid
         request = TransactionsGetRequest(
             access_token=access_token,
-            start_date=start_date,
-            end_date=end_date_today
+            start_date=start_date,          # pass date object
+            end_date=end_date_today         # pass date object
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
         
-        # Retreive the last deposit made to the account as the last paycheck
+        # Retrieve the last deposit made to the account as the last paycheck
         sorted_transactions = sorted(transactions, key=lambda x: x['date'], reverse=True)
         last_paycheck = None
         for tx in sorted_transactions:
@@ -248,7 +252,11 @@ def get_paycheck_spending(uid: str):
             last_paycheck_amount = abs(last_paycheck['amount'])
             last_paycheck_date = last_paycheck['date']
             # Calculate spent since paycheck (sum of outflows since that date)
-            spent_since_paycheck = sum(tx['amount'] for tx in transactions if tx['date'] >= last_paycheck_date and tx['amount'] > 0)
+            spent_since_paycheck = sum(
+                tx['amount']
+                for tx in transactions
+                if tx['date'] >= last_paycheck_date and tx['amount'] > 0
+            )
         else:
             # Handle case where no deposit found
             last_paycheck_amount = 0.0
@@ -291,8 +299,8 @@ def get_user_transactions(uid: str):
         # Fetch transactions from Plaid (last 10 weeks as example)
         request = TransactionsGetRequest(
             access_token=access_token,
-            start_date=start_date,
-            end_date=end_date_today
+            start_date=start_date,          # pass date object
+            end_date=end_date_today         # pass date object
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
@@ -329,22 +337,23 @@ def get_mean_spending_scores_month(uid: str):
         # Fetch transactions from Plaid
         request = TransactionsGetRequest(
             access_token=access_token,
-            start_date=start_date,
-            end_date=end_date_today
+            start_date=start_date,          # pass date object
+            end_date=end_date_today         # pass date object
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
-        
-        # Convert start_date string to datetime for calculations
-        start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
         
         # Group transactions by week and calculate scores
         weekly_data = defaultdict(lambda: {"total_amount": 0, "count": 0})
         
         for txn in transactions:
-            txn_date = datetime.strptime(txn["date"], "%Y-%m-%d")
+            # Parse transaction date string to date object
+            if isinstance(txn["date"], str):
+                txn_date = datetime.strptime(txn["date"], "%Y-%m-%d").date()
+            else:
+                txn_date = txn["date"]
             # Calculate week number (0-9) from start_date
-            days_from_start = (txn_date - start_date_dt).days
+            days_from_start = (txn_date - start_date).days
             week_num = days_from_start // 7
             
             if 0 <= week_num < 10:  # Only include transactions within 10 weeks
@@ -359,11 +368,11 @@ def get_mean_spending_scores_month(uid: str):
         scores = []
         
         for week in range(10):
-            week_start_date = start_date_dt + timedelta(weeks=week)
+            week_start_date = start_date + timedelta(weeks=week)
             dates.append(week_start_date.strftime("%Y-%m-%d"))
             
             # TODO TODO TODO RESOLVE THIS WITH REAL SCORES
-            if week in weekly_data and weekly_data[week]["count"] > 0:
+            if weekly_data[week]["count"] > 0:
                 # Calculate a score: higher spending = lower score
                 avg_spending = weekly_data[week]["total_amount"] / weekly_data[week]["count"]
                 # Score formula: 100 - (avg_spending / 10), clamped between 0-100
@@ -415,8 +424,8 @@ def get_transaction_description(uid: str, transaction_id: str):
         # Fetch ALL transactions from Plaid
         request = TransactionsGetRequest(
             access_token=access_token,
-            start_date="1900-01-01",
-            end_date=date.today().strftime("%Y-%m-%d")
+            start_date=date(1900, 1, 1),   # use date object, not string
+            end_date=date.today()          # use date object, not string
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])

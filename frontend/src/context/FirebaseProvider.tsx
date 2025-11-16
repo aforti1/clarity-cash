@@ -1,13 +1,6 @@
-/* src/context/FirebaseProvider.tsx - Provides Firebase Auth context to the app */
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth } from "../firebase"; // <-- use shared auth
 
 type AuthContextType = {
   uid: string | null;
@@ -15,9 +8,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({ uid: null });
 
-export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,11 +18,7 @@ export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({
     return () => unsubscribe();
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ uid }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ uid }}>{children}</AuthContext.Provider>;
 };
 
 export const useFirebaseAuth = () => useContext(AuthContext);
