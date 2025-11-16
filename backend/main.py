@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException, Body 
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from backend.resolve_env import get_firebase_creds, get_plaid_client_id, get_plaid_sandbox_secret
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
+from .resolve_env import get_firebase_creds, get_plaid_secrets, get_hf_token
+
 import plaid
 from plaid.api import plaid_api
 from plaid.model.products import Products
@@ -13,80 +14,82 @@ from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchan
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.country_code import CountryCode
+
 from pydantic import BaseModel
+from .llm_module import generate_gemini_suggestion, generate_suggestion
 
-# Load environment variables
-load_dotenv()
+hf_token = get_hf_token()
 
-# ---------------------
-# Firebase Firestore setup
-# ---------------------
+
+
+# -----------------------------
+# Firebase setup
+# -----------------------------
 if not firebase_admin._apps:
-    cred = credentials.Certificate(get_firebase_creds())
+    cred_dict = get_firebase_creds()
+    cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
+
 db = firestore.client()
 
-# ---------------------
-# Plaid setup (sandbox)
-# ---------------------
-PLAID_CLIENT_ID = get_plaid_client_id()
-PLAID_SECRET = get_plaid_sandbox_secret()
-PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")  # Safe default to sandbox
-
+# -----------------------------
+# Plaid client setup
+# -----------------------------
+plaid_secrets = get_plaid_secrets()
 configuration = plaid.Configuration(
-    host=plaid.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Development,
+    host=plaid.Environment.Sandbox,
     api_key={
-        'clientId': PLAID_CLIENT_ID,
-        'secret': PLAID_SECRET
+        "clientId": plaid_secrets["client_id"],
+        "secret": plaid_secrets["sandbox_secret"]
     }
 )
-api_client = plaid.ApiClient(configuration=configuration)
-plaid_client = plaid_api.PlaidApi(api_client)
+plaid_client = plaid_api.PlaidApi(plaid.ApiClient(configuration))
 
-# ---------------------
-# FastAPI app
-# ---------------------
-app = FastAPI()
+# -----------------------------
+# FastAPI setup
+# -----------------------------
+app = FastAPI(title="Clarity Cash Backend")
 
-# Allow frontend CORS
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this frontend URL in prod
+    allow_origins=["*"],  # Adjust in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ---------------------
-# Routes
-# ---------------------
-
+# -----------------------------
+# Basic routes
+# -----------------------------
 @app.get("/")
 def root():
     return {"message": "FastAPI + Firebase + Plaid backend running!"}
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint."""
     return {"status": "ok"}
 
+# -----------------------------
+# Firebase user endpoint
+# -----------------------------
 @app.get("/users/{uid}")
 def get_user(uid: str):
-    """Fetch user info from Firebase Auth."""
     try:
         user = auth.get_user(uid)
         return {"uid": user.uid, "email": user.email, "display_name": user.display_name}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+# -----------------------------
+# Plaid endpoints
+# -----------------------------
 @app.get("/plaid/link-token")
 def create_sandbox_link_token():
-    """ Return the Plaid link token for the frontend to initialize Plaid Link """  
-    print("Creating Plaid link token...")
     try:
-        request = plaid_api.LinkTokenCreateRequest(
+        request = LinkTokenCreateRequest(
             user={"client_user_id": "test_user"},
-            client_name="Hackathon App",
+            client_name="Clarity Cash App",
             products=[Products("transactions")],
             country_codes=[CountryCode("US")],
             language="en"
@@ -102,32 +105,71 @@ class TokenExchangeRequest(BaseModel):
 
 @app.post("/plaid/sandbox-exchange-token")
 def exchange_sandbox_public_token(req: TokenExchangeRequest = Body(...)):
-    """Exchange a Plaid public token for an access token and store it under the user's Firestore doc."""
     try:
         request = ItemPublicTokenExchangeRequest(public_token=req.public_token)
         response_as_dict = plaid_client.item_public_token_exchange(request).to_dict()
         access_token = response_as_dict.get("access_token")
-        payload = {"uid": str(req.uid), "access_token": access_token}  # Payload to store in Firestore
-        # Store the access token in Firestore under the user's document
+
+        # Store in Firestore
         try:
             user_ref = db.collection("users").document(req.uid)
-            user_ref.set(payload, merge=True)
+            user_ref.set({"uid": req.uid, "access_token": access_token}, merge=True)
         except Exception as firestore_error:
-            print(f"[ERROR] Firestore write failed: {str(firestore_error)}")
-            # Continue anyway - token exchange succeeded
-        
-        # Return a sanitized response
+            print(f"[ERROR] Firestore write failed: {firestore_error}")
+
         return {"success": True, "access_token": access_token}
     except Exception as e:
-        print(f"[ERROR] Token exchange failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @app.get("/plaid/accounts/{access_token}")
 def get_plaid_accounts(access_token: str):
-    """Fetch accounts associated with a given Plaid access token."""
     try:
-        request = plaid_api.AccountsGetRequest(access_token=access_token)
+        request = AccountsGetRequest(access_token=access_token)
         response = plaid_client.accounts_get(request)
         return response.to_dict()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# -----------------------------
+# Gemini endpoint (hosted LLM)
+# -----------------------------
+class GeminiRequest(BaseModel):
+    transaction_name: str
+    transaction_amount: float
+    category: str
+    user_context: dict = None
+
+@app.post("/gemini-suggestion")
+def gemini_suggestion(request: GeminiRequest):
+    try:
+        print(f"[LLM] Generating Gemini suggestion for {request.transaction_name} (${request.transaction_amount})")
+        suggestion = generate_gemini_suggestion(
+            transaction_name=request.transaction_name,
+            transaction_amount=request.transaction_amount,
+            category=request.category,
+            user_context=request.user_context
+        )
+        return {"suggestion": suggestion}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# -----------------------------
+# General LLM endpoint
+# -----------------------------
+class LLMRequest(BaseModel):
+    prompt: str
+
+@app.post("/llm-suggestion")
+def llm_suggestion(request: LLMRequest):
+    try:
+        print(f"[LLM] Generating general suggestion for prompt: {request.prompt[:50]}...")
+        suggestion = generate_suggestion(request.prompt)
+        return {"suggestion": suggestion}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+private_key = os.getenv("FIREBASE_PRIVATE_KEY")
+if private_key is None:
+    raise ValueError("FIREBASE_PRIVATE_KEY is not set in environment variables")
+private_key = private_key.replace("\\n", "\n")  # Move this after the None check
+print("Firebase private key loaded successfully.")
