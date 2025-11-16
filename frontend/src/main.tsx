@@ -7,7 +7,7 @@ import './index.css'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider>
-      <App />
+      <App/>
     </Provider>
   </StrictMode>
 )
