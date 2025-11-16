@@ -1,7 +1,29 @@
 {
+<<<<<<< Updated upstream
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
   ]
 }
+=======
+  "compilerOptions": {
+    "target": "ESNext",               // Use the latest JavaScript features
+    "module": "ESNext",               // Use ES Modules (ESM) syntax
+    "moduleResolution": "node",       // Resolve modules in a Node.js-compatible way
+    "esModuleInterop": true,          // Allow for compatibility between ES and CommonJS
+    "strict": true,                   // Enable all strict type-checking options
+    "skipLibCheck": true,             // Skip type checking of declaration files
+    //"forceConsistentCasingInFileNames": true,
+    //"outDir": "./dist",               // Output directory for compiled files
+    //"baseUrl": ".",                   // Base directory for relative imports
+    //"jsx": "react-jsx",               // JSX support for React (if you're using React 17+)
+    "resolveJsonModule": true         // Allows importing JSON files
+   // "allowJs": true,           // Allow JavaScript files to be compiled by TypeScript
+  },
+  "include": [
+    "src/**/*"                     // Include all Type/Java Script files in the 'src' folder
+      ]
+}
+
+>>>>>>> Stashed changes
