@@ -158,9 +158,6 @@ class TransactionScorer:
             "severity": self._classify_severity(base),
         }
 
-
-
-
     def score_flex_essential(self, txn_amount, capacity, all_txns, cat_id):
         income = capacity["effective_income"]
         if income <= 0:
@@ -250,7 +247,7 @@ class TransactionScorer:
             )
 
         elif profile == "SAVINGS_POSITIVE":
-            result = self.score_savings(txn_amount, capacity, context_features)
+            result = self.score_savings(txn_row, capacity, all_txns, context_features)
 
         elif profile == "FLEX_ESSENTIAL":
             result = self.score_flex_essential(

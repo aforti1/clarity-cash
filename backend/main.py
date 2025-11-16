@@ -29,12 +29,37 @@ from pydantic import BaseModel
 from datetime import date, datetime, timedelta
 from collections import defaultdict
 
+import pandas as pd
+import numpy as np
+from scoring_config import load_category_config, compute_context_features
+from plaid_service import (
+    fetch_plaid_transactions,
+    load_pf_taxonomy_map,
+    plaid_to_txns_df,
+)
+
+from transaction_scorer import TransactionScorer
+
 # -----------------------------
 # Hugging Face token check
 # -----------------------------
 # HF_API_TOKEN = get_hf_token()
 # if not HF_API_TOKEN:
 #     raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
+
+# --------- SCORING SETUP (GLOBAL SINGLETONS) ---------
+ROOT_DIR = Path(__file__).resolve().parent
+
+CATEGORY_CFG_PATH = ROOT_DIR / "data" / "category_scoring_config.xlsx"
+
+# Load the full category config (merges CAT_LABELS, PROFILE, CONTEXT, etc.)
+SCORING_CFG = load_category_config(CATEGORY_CFG_PATH)
+
+# Load Plaid personal_finance_category → CAT_ID mapping
+PF_MAP = load_pf_taxonomy_map()
+
+# Create a single scorer instance
+SCORER = TransactionScorer(SCORING_CFG)
 
 # -----------------------------
 # Firebase setup
@@ -95,6 +120,60 @@ def get_time_date_range(range_weeks: int = 10):
     end_date = date.today()
     start_date = end_date - timedelta(weeks=range_weeks)
     return end_date.strftime("%Y-%m-%d"), start_date.strftime("%Y-%m-%d")
+
+def get_scored_plaid_transactions(access_token: str, start_date, end_date, count: int = 500):
+    # 1) Fetch raw Plaid transactions for the window
+    plaid_txns = fetch_plaid_transactions(
+        access_token=access_token,
+        start_date=start_date,
+        end_date=end_date,
+        count=count,
+    )
+
+    if not plaid_txns:
+        return []
+
+    # 2) Convert Plaid → internal txns DataFrame with CAT_IDs
+    txns_df = plaid_to_txns_df(plaid_txns, PF_MAP)
+    if txns_df.empty:
+        # Nothing we can score, just return original with no scores
+        for t in plaid_txns:
+            t["score"] = None
+            t["profile"] = None
+            t["severity"] = None
+        return plaid_txns
+
+    # 3) Compute context features from actual transaction mix
+    #    Uses your CONTEXT_BUCKET logic: EFFECTIVE_INCOME, FEES_CONTEXT, etc.
+    context_features = compute_context_features(
+        txns_df,
+        SCORING_CFG,
+        start_date,
+        end_date,
+    )
+
+    # 4) Run the scorer
+    scored_df = SCORER.score_all_transactions(txns_df, context_features)
+
+    # 5) Build lookup tables by transaction_id
+    score_by_tid = dict(zip(scored_df["transaction_id"], scored_df["score"]))
+    profile_by_tid = dict(zip(scored_df["transaction_id"], scored_df["profile"]))
+    severity_by_tid = dict(zip(scored_df["transaction_id"], scored_df["severity"]))
+
+    # 6) Attach scores back to the original Plaid transaction dicts
+    for t in plaid_txns:
+        tid = t["transaction_id"]
+        if tid in score_by_tid:
+            t["score"] = float(score_by_tid[tid])  # 0..100
+            t["profile"] = profile_by_tid.get(tid)  # DISCRETIONARY_WANT, etc.
+            t["severity"] = severity_by_tid.get(tid)  # very_low..very_high
+        else:
+            t["score"] = None
+            t["profile"] = None
+            t["severity"] = None
+
+    return plaid_txns
+
 
 # -----------------------------
 # Basic routes
@@ -275,7 +354,6 @@ class Transaction(BaseModel):
 
 @app.get("/plaid/transactions/{uid}")
 def get_user_transactions(uid: str):
-    # Fetch the user's access token from Firestore
     try:
         user_ref = db.collection("users").document(uid)
         user_doc = user_ref.get()
@@ -287,26 +365,17 @@ def get_user_transactions(uid: str):
             raise HTTPException(status_code=404, detail="Access token not found for user")
         
         end_date_today, start_date = get_time_date_range(range_weeks=10)
-        
-        # Fetch transactions from Plaid (last 10 weeks as example)
-        request = TransactionsGetRequest(
+
+        scored_txns = get_scored_plaid_transactions(
             access_token=access_token,
             start_date=start_date,
-            end_date=end_date_today
+            end_date=end_date_today,
+            count=500,
         )
-        response = plaid_client.transactions_get(request)
-        transactions = response.to_dict().get("transactions", [])
-        
-        # TODO FIX WITH REAL SCORES - Add placeholder scores to transactions
-        for txn in transactions:
-            # TODO FIX Placeholder scoring logic: higher amounts get lower scores
-            amount = abs(txn.get("amount", 0))
-            score = max(0, min(100, 100 - (amount / 10)))
-            txn["score"] = round(score, 2)
-        
-        return {"transactions": transactions}
+
+        return {"transactions": scored_txns}
     
-    except Exception as e:
+    except ApiException as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 # Class for 7-day mean spending score over the past month
