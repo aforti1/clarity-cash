@@ -1,2 +1,8 @@
 /node_modules
 .env
+*.log
+*.pid
+frontend.pid
+frontend.log
+backend.pid
+backend.log
