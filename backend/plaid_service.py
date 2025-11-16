@@ -38,29 +38,30 @@ def load_pf_taxonomy_map():
 	return mapping
 	
 def plaid_to_txns_df(plaid_txns, pf_map):
-	rows = []
+    rows = []
 
-	for t in plaid_txns:
-		date = t["date"]
-		amount = t["amount"]
+    for t in plaid_txns:
+        date = t["date"]
+        amount = t["amount"]
 
-		pfc = t.get("personal_finance_category") or {}
-		primary = pfc.get("primary")
-		detailed = pfc.get("detailed")
+        pfc = t.get("personal_finance_category") or {}
+        primary = pfc.get("primary")
+        detailed = pfc.get("detailed")
 
-		key = (primary, detailed)
-		cat_id = pf_map.get(key)
-		if cat_id is None:
-			continue
+        key = (primary, detailed)
+        cat_id = pf_map.get(key)
+        if cat_id is None:
+            continue
 
-		rows.append({
-			"date": date,
-			"amount": amount,
-			"CAT_ID": cat_id,
-		})
+        rows.append({
+            "transaction_id": t["transaction_id"],
+            "date": date,
+            "amount": amount,
+            "CAT_ID": cat_id,
+        })
 
-	df = pd.DataFrame(rows)
-	df["date"] = pd.to_datetime(df["date"])
-	df["CAT_ID"] = df["CAT_ID"].astype(int)
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"])
+    df["CAT_ID"] = df["CAT_ID"].astype(int)
 
-	return df
+    return df
