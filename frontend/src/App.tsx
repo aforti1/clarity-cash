@@ -50,9 +50,8 @@ function App() {
         // Request a link token from the backend
         try {
           const resp = await fetch('/api/plaid/link-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
           });
 
           if (!resp.ok) throw new Error(`Link token request failed: ${resp.status}`);

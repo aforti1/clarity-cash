@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from backend.resolve_env import get_firebase_creds
+from backend.resolve_env import get_firebase_creds, get_plaid_client_id, get_plaid_sandbox_secret
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 import plaid
@@ -29,9 +29,9 @@ db = firestore.client()
 # ---------------------
 # Plaid setup (sandbox)
 # ---------------------
-PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID")
-PLAID_SECRET = os.getenv("PLAID_SECRET")
-PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")
+PLAID_CLIENT_ID = get_plaid_client_id()
+PLAID_SECRET = get_plaid_sandbox_secret()
+PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")  # Safe default to sandbox
 
 configuration = plaid.Configuration(
     host=plaid.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Development,
@@ -86,12 +86,12 @@ def create_sandbox_link_token():
         request = plaid_api.LinkTokenCreateRequest(
             user={"client_user_id": "test_user"},
             client_name="Hackathon App",
-            products=[Products.TRANSACTIONS],
-            country_codes=[CountryCode.US],
+            products=[Products("transactions")],
+            country_codes=[CountryCode("US")],
             language="en"
         )
         response = plaid_client.link_token_create(request)
-        return response.to_dict()
+        return {"link_token": response.link_token}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
