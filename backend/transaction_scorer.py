@@ -100,24 +100,42 @@ class TransactionScorer:
             "severity": self._classify_severity(base),
         }
 
-    def score_savings(self, txn_amount, capacity, context_features):
+    def score_savings(self, txn_row, capacity, all_txns, context_features):
         income = capacity["effective_income"]
         if income <= 0:
-            base = 70.0
+            base = 50.0
             return {
                 "score": base,
                 "savings_pct": None,
                 "severity": self._classify_severity(base),
             }
 
-        total_savings_rate = context_features.get("savings_rate", 0.0)
+        tx_date = pd.to_datetime(txn_row["date"])
+        frame = all_txns.copy()
+        frame["date_parsed"] = pd.to_datetime(frame["date"])
+
+        window_start = tx_date - pd.Timedelta(days=30)
+        in_window = (frame["date_parsed"] >= window_start) & (
+            frame["date_parsed"] <= tx_date
+        )
+
+        savings_cats = self.cfg[
+            (self.cfg["SPEND_PROFILE"] == "SAVINGS_POSITIVE")
+            & (self.cfg["IS_SCORED"] == 1)
+        ]["CAT_ID"].values
+
+        window_savings = frame[in_window & frame["CAT_ID"].isin(savings_cats)]["amount"].sum()
+        window_savings = max(0.0, float(window_savings))
+
+        savings_rate_30d = window_savings / income
+
         target = self.RECOMMENDED_SAVINGS_RATE
 
         if target <= 0:
-            base = 70.0
+            base = 50.0
         else:
-            rel = total_savings_rate / target
-            base = 70.0 + 30.0 * np.exp(-((rel - 1.0) ** 2) / 0.6)
+            rel = savings_rate_30d / target
+            base = 100.0 * np.exp(-((rel - 1.0) ** 2) / 0.6)
 
         if capacity["in_distress"]:
             cash_adv_share = context_features.get("cash_adv_share", 0.0)
@@ -128,11 +146,11 @@ class TransactionScorer:
                 (cash_adv_share * 2.5) + (fees_ratio / 0.05),
             )
 
-            base -= 15.0 * distress_index
+            base *= (1.0 - 0.7 * distress_index)
 
         base = self._bounded(base, 0.0, 100.0)
 
-        savings_pct = txn_amount / income * 100.0
+        savings_pct = savings_rate_30d * 100.0
 
         return {
             "score": base,
@@ -140,10 +158,13 @@ class TransactionScorer:
             "severity": self._classify_severity(base),
         }
 
+
+
+
     def score_flex_essential(self, txn_amount, capacity, all_txns, cat_id):
         income = capacity["effective_income"]
         if income <= 0:
-            base = 70.0
+            base = 50.0
             return {
                 "score": base,
                 "pct_of_income": None,
@@ -157,15 +178,10 @@ class TransactionScorer:
         sweet_high = 0.15
 
         if share <= 0:
-            base = 95.0
+            base = 100.0
         else:
-            x = share / max(sweet_high, 1e-9)
-            if x <= 1.0:
-                base = 95.0 - 10.0 * (x ** 2)
-            else:
-                excess = x - 1.0
-                penalty = 20.0 * (1.0 - np.exp(-excess))
-                base = 85.0 - penalty
+            ratio = share / max(sweet_high, 1e-9)
+            base = 100.0 / (1.0 + (ratio / 2.0) ** 2)
 
         if capacity["in_distress"]:
             base *= 0.9
@@ -177,6 +193,7 @@ class TransactionScorer:
             "pct_of_income": share * 100.0,
             "severity": self._classify_severity(base),
         }
+
 
     def score_negative_event(self, txn_amount, capacity, all_txns, cat_id):
         income = capacity["effective_income"]
