@@ -1,4 +1,4 @@
-# backend/main.py
+# backend/main.py - Holds our FastAPI backend endpoints, integrating with Firebase, Plaid, and LLMs
 import os
 from dotenv import load_dotenv
 
@@ -26,8 +26,8 @@ from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.country_code import CountryCode
 
 from pydantic import BaseModel
-from datetime import date
-from datetime import timedelta
+from datetime import date, datetime, timedelta
+from collections import defaultdict
 
 # -----------------------------
 # Hugging Face token check
@@ -297,6 +297,13 @@ def get_user_transactions(uid: str):
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
         
+        # TODO FIX WITH REAL SCORES - Add placeholder scores to transactions
+        for txn in transactions:
+            # TODO FIX Placeholder scoring logic: higher amounts get lower scores
+            amount = abs(txn.get("amount", 0))
+            score = max(0, min(100, 100 - (amount / 10)))
+            txn["score"] = round(score, 2)
+        
         return {"transactions": transactions}
 
 # Class for 7-day mean spending score over the past month
@@ -325,13 +332,44 @@ def get_mean_spending_scores_month(uid: str):
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
         
-        ### TODO TODO TODO TODO TODO NOTE NOTE Fill in logic to calculate 7-day mean spending scores over the past 10 weeks
+        # Group transactions by week and calculate scores
+        weekly_data = defaultdict(lambda: {"total_amount": 0, "count": 0})
         
+        for txn in transactions:
+            txn_date = datetime.strptime(txn["date"], "%Y-%m-%d")
+            # Calculate week number (0-9) from start_date
+            days_from_start = (txn_date - start_date).days
+            week_num = days_from_start // 7
+            
+            if 0 <= week_num < 10:  # Only include transactions within 10 weeks
+                # Only count positive amounts (spending, not income)
+                amount = txn["amount"]
+                if amount > 0:
+                    weekly_data[week_num]["total_amount"] += amount
+                    weekly_data[week_num]["count"] += 1
         
+        # Calculate mean scores for each week
+        dates = []
+        scores = []
+        
+        for week in range(10):
+            week_start_date = start_date + timedelta(weeks=week)
+            dates.append(week_start_date.strftime("%Y-%m-%d"))
+            
+            # TODO TODO TODO RESOLVE THIS WITH REAL SCORES
+            if week in weekly_data and weekly_data[week]["count"] > 0:
+                # Calculate a score: higher spending = lower score
+                avg_spending = weekly_data[week]["total_amount"] / weekly_data[week]["count"]
+                # Score formula: 100 - (avg_spending / 10), clamped between 0-100
+                score = max(0, min(100, 100 - (avg_spending / 10)))
+                scores.append(round(score, 2))
+            else:
+                # No transactions this week, assign neutral score
+                scores.append(50.0)
         
         return {
             "dates": dates,
-            "scores": scores
+            "mean_scores": scores
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -340,7 +378,7 @@ def get_mean_spending_scores_month(uid: str):
 def score_transaction(transaction: Transaction):
     """Score a single transaction based on custom logic."""
     try:
-        # TODO TODO TODO Dummy scoring logic (to be replaced with real logic)
+        # TODO TODO TODO FIX Dummy scoring logic (to be replaced with real logic)
         score = 100.0 - (transaction.amount / 10.0)  # Placeholder logic
         
         # TODO LLM LOGIC HERE (Generating Description/Reccomendations)

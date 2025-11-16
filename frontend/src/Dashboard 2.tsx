@@ -10,7 +10,7 @@ const Dashboard = () => {
     // Fetch Plaid link token from backend
     const fetchLinkToken = async () => {
       try {
-        const response = await fetch('http://your-backend-api/plaid/link-token/your-user-id', {
+        const response = await fetch('/api/plaid/link-token/your-user-id', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('firebase_id_token')}`,
@@ -29,11 +29,11 @@ const Dashboard = () => {
     if (linkToken) {
       const handler = window.Plaid.create({
         token: linkToken,
-        onSuccess: function(public_token, metadata) {
+        onSuccess: function(public_token, _metadata) {
           // Handle successful link and exchange public token with backend
           console.log('Public token:', public_token);
         },
-        onExit: function(err, metadata) {
+        onExit: function(err, _metadata) {
           if (err) {
             console.error('Plaid link exited with error:', err);
           }
