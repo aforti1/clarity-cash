@@ -1,4 +1,5 @@
 import pandas as pd
+import math
 from datetime import datetime
 
 def load_category_config(path):
@@ -56,6 +57,12 @@ def compute_context_features(txns, cfg, start_date, end_date):
 	other_flex_total = bucket_sums.get('FLEX_OTHER_ESSENTIAL', 0.0)
 	other_flex_share = max(0.0, other_flex_total) / effective_income
 
+	avoidable_harmful_total = bucket_sums.get('AVOIDABLE_HARMFUL', 0.0)
+	avoidable_harmful_share = max(0.0, avoidable_harmful_total) / effective_income
+
+	avoidable_neutral_total = bucket_sums.get('AVOIDABLE_NEUTRAL', 0.0)
+	avoidable_neutral_share = max(0.0, avoidable_neutral_total) / effective_income
+
 	return {
 		"effective_income": float(effective_income),
 		"savings_rate": float(savings_rate),
@@ -66,4 +73,8 @@ def compute_context_features(txns, cfg, start_date, end_date):
 		"structural_share": float(structural_share),
 		"core_flex_share": float(core_flex_share),
 		"other_flex_share": float(other_flex_share),
+		"avoidable_harmful_share": float(avoidable_harmful_share),
+        "avoidable_neutral_share": float(avoidable_neutral_share),
 	}
+
+	

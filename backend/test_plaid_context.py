@@ -19,8 +19,8 @@ def main():
 
 	ctx = compute_context_features(txns, cfg, pd.to_datetime(start_date), pd.to_datetime(end_date))
 
-	print("Context for period: ", start_date, " to ", end_date)
-	print(ctx)
+	for k, v in ctx.items():
+		print(f" {k}: {v}")
 
 if __name__ == "__main__":
 	main()
