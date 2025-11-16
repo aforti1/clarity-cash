@@ -17,7 +17,7 @@ from plaid.model.country_code import CountryCode
 load_dotenv()
 
 # ---------------------
-# Firebase setup
+# Firebase Firestore setup
 # ---------------------
 FIREBASE_CRED_PATH = os.getenv("FIREBASE_CRED_JSON")  # path to your Firebase JSON
 if not firebase_admin._apps:
@@ -79,9 +79,12 @@ def get_user(uid: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@app.get("/plaid/sandbox-link-token")
+@app.get("/plaid/link-token/{uid}")
 def create_sandbox_link_token():
-    """Generate a Plaid Link token for testing."""
+    """ If the uid exists in the db, return uid. Else, generate a Plaid Link token."""
+    # TODO - Check if uid exists in Firestore users collection. If so, return it. Else,
+    # return a new Plaid link token as seen below.
+    
     try:
         request = plaid_api.LinkTokenCreateRequest(
             user={"client_user_id": "test_user"},
