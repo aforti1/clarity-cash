@@ -1,7 +1,8 @@
-from fastapi import FastAPI, HTTPException, body 
+from fastapi import FastAPI, HTTPException, Body 
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
+from backend.resolve_env import get_firebase_creds
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 import plaid
@@ -20,9 +21,8 @@ load_dotenv()
 # ---------------------
 # Firebase Firestore setup
 # ---------------------
-FIREBASE_CRED_PATH = os.getenv("FIREBASE_CRED_JSON")  # path to your Firebase JSON
 if not firebase_admin._apps:
-    cred = credentials.Certificate(FIREBASE_CRED_PATH)
+    cred = credentials.Certificate(get_firebase_creds())
     firebase_admin.initialize_app(cred)
 db = firestore.client()
 
@@ -33,15 +33,15 @@ PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID")
 PLAID_SECRET = os.getenv("PLAID_SECRET")
 PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")
 
-configuration = plaid_api.Configuration(
-    host=plaid_api.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Devlopment,
+configuration = plaid.Configuration(
+    host=plaid.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Development,
     api_key={
         'clientId': PLAID_CLIENT_ID,
         'secret': PLAID_SECRET
     }
 )
 api_client = plaid.ApiClient(configuration=configuration)
-plaid_client = plaid.PlaidApi(api_client)
+plaid_client = plaid_api.PlaidApi(api_client)
 
 # ---------------------
 # FastAPI app

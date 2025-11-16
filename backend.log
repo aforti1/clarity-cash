@@ -1,5 +1,7 @@
 INFO:     Will watch for changes in these directories: ['/mnt/c/Users/jairi/OneDrive/Desktop/Repos/clarity-cash']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [75263] using statreload
-ERROR:    Error loading ASGI app. Could not import module "main".
-INFO:     Stopping reloader process [74575]
+INFO:     Started reloader process [87989] using statreload
+INFO:     Started server process [88011]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:39998 - "POST /plaid/link-token HTTP/1.1" 405 Method Not Allowed

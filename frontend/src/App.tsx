@@ -32,7 +32,7 @@ function App() {
   const [linkToken, setLinkToken] = useState<string | null>(null);
 
   const onLogin = async () => {
-    const emailInput = document.querySelector('input[placeholder="Username:"]') as HTMLInputElement | null;
+    const emailInput = document.querySelector('input[placeholder="Email:"]') as HTMLInputElement | null;
     const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement | null;
     const email = emailInput?.value ?? '';
     const password = passwordInput?.value ?? '';
@@ -45,7 +45,7 @@ function App() {
     } catch (error) {
       // Login failed - display model asking to redirect to registration page
       console.error(error);
-      const goToRegister = window.confirm('Incorrect username or password. Would you like to register?');
+      const goToRegister = window.confirm('Incorrect Email or password. Would you like to register?');
       if (goToRegister) {
         // Request a link token from the backend
         try {
@@ -95,7 +95,7 @@ function App() {
         
         <VStack gap={4} w="full" maxW="350px" mt={6} alignItems="stretch">
           <Input
-            placeholder="Username:"
+            placeholder="Email:"
             size="lg"
             bg="gray.200"
             border="none"
