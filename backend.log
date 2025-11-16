@@ -1,0 +1,5 @@
+INFO:     Will watch for changes in these directories: ['/mnt/c/Users/jairi/OneDrive/Desktop/Repos/clarity-cash']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [75263] using statreload
+ERROR:    Error loading ASGI app. Could not import module "main".
+INFO:     Stopping reloader process [74575]
