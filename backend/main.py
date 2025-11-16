@@ -1,11 +1,20 @@
-<<<<<<< Updated upstream
-from fastapi import FastAPI, HTTPException, Body
-from fastapi.middleware.cors import CORSMiddleware
+# backend/main.py
 import os
 from dotenv import load_dotenv
+
+# -----------------------------
+# Load environment variables first
+# -----------------------------
+load_dotenv()
+
+from fastapi import FastAPI, HTTPException, Body
+from fastapi.middleware.cors import CORSMiddleware
+
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
+
 from .resolve_env import get_firebase_creds, get_plaid_secrets, get_hf_token
+from .llm_module import generate_gemini_suggestion, generate_suggestion
 
 import plaid
 from plaid.api import plaid_api
@@ -17,27 +26,23 @@ from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.country_code import CountryCode
 
 from pydantic import BaseModel
-from .llm_module import generate_gemini_suggestion, generate_suggestion
-=======
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from llm_module import generate_gemini_suggestion, generate_suggestion
-from resolve_env import get_firebase_creds, get_plaid_client_id, get_plaid_sandbox_secret
 
-app = FastAPI(title="Clarity Cash LLM API")
-
-
->>>>>>> Stashed changes
-
-hf_token = get_hf_token()
-
-
+# -----------------------------
+# Hugging Face token check
+# -----------------------------
+HF_API_TOKEN = get_hf_token()
+if not HF_API_TOKEN:
+    raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
 
 # -----------------------------
 # Firebase setup
 # -----------------------------
 if not firebase_admin._apps:
     cred_dict = get_firebase_creds()
+    private_key = cred_dict.get("private_key")
+    if not private_key:
+        raise ValueError("Firebase private key missing from credentials")
+    cred_dict["private_key"] = private_key.replace("\\n", "\n")
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
 
@@ -50,8 +55,8 @@ plaid_secrets = get_plaid_secrets()
 configuration = plaid.Configuration(
     host=plaid.Environment.Sandbox,
     api_key={
-        "clientId": plaid_secrets["client_id"],
-        "secret": plaid_secrets["sandbox_secret"]
+        "clientId": plaid_secrets["PLAID_CLIENT_ID"],
+        "secret": plaid_secrets["PLAID_SANDBOX_SECRET"]
     }
 )
 plaid_client = plaid_api.PlaidApi(plaid.ApiClient(configuration))
@@ -64,7 +69,7 @@ app = FastAPI(title="Clarity Cash Backend")
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in prod
+    allow_origins=["*"],  # Adjust in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -141,14 +146,9 @@ def get_plaid_accounts(access_token: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-<<<<<<< Updated upstream
 # -----------------------------
-# Gemini endpoint (hosted LLM)
+# Gemini endpoint
 # -----------------------------
-=======
-
-# Request body for Gemini
->>>>>>> Stashed changes
 class GeminiRequest(BaseModel):
     transaction_name: str
     transaction_amount: float
@@ -158,10 +158,6 @@ class GeminiRequest(BaseModel):
 @app.post("/gemini-suggestion")
 def gemini_suggestion(request: GeminiRequest):
     try:
-<<<<<<< Updated upstream
-        print(f"[LLM] Generating Gemini suggestion for {request.transaction_name} (${request.transaction_amount})")
-=======
->>>>>>> Stashed changes
         suggestion = generate_gemini_suggestion(
             transaction_name=request.transaction_name,
             transaction_amount=request.transaction_amount,
@@ -172,34 +168,142 @@ def gemini_suggestion(request: GeminiRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-<<<<<<< Updated upstream
 # -----------------------------
 # General LLM endpoint
 # -----------------------------
-=======
-# General LLM endpoint
->>>>>>> Stashed changes
 class LLMRequest(BaseModel):
     prompt: str
 
 @app.post("/llm-suggestion")
 def llm_suggestion(request: LLMRequest):
     try:
-<<<<<<< Updated upstream
-        print(f"[LLM] Generating general suggestion for prompt: {request.prompt[:50]}...")
         suggestion = generate_suggestion(request.prompt)
         return {"suggestion": suggestion}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-private_key = os.getenv("FIREBASE_PRIVATE_KEY")
-if private_key is None:
-    raise ValueError("FIREBASE_PRIVATE_KEY is not set in environment variables")
-private_key = private_key.replace("\\n", "\n")  # Move this after the None check
-print("Firebase private key loaded successfully.")
-=======
-        suggestion = generate_suggestion(request.prompt)
-        return {"suggestion": suggestion}
+# Class for populating paycheck spending graph
+class paycheckSpending(BaseModel):
+    last_paycheck_amount: float
+    last_paycheck_date: str
+    transactions: list
+# TODO TODO TODO SAMPLE LOGIC FILL IN
+@app.get("/plaid/paycheck-spending/{uid}")
+def get_paycheck_spending(uid: str):
+    """Fetch paycheck spending data for a user."""
+    try:
+        # Fetch user's access token from Firestore
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="User not found in Firestore")
+        
+        access_token = user_doc.to_dict().get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=404, detail="Access token not found for user")
+        
+        # Fetch transactions from Plaid
+        request = TransactionsGetRequest(
+            access_token=access_token,
+            start_date="2023-01-01",
+            end_date="2023-12-31"
+        )
+        response = plaid_client.transactions_get(request)
+        transactions = response.to_dict().get("transactions", [])
+        
+        # Dummy logic to calculate paycheck spending (to be replaced with real logic)
+        last_paycheck_amount = 2000.0  # Placeholder
+        last_paycheck_date = "2023-09-15"  # Placeholder
+        
+        return {
+            "last_paycheck_amount": last_paycheck_amount,
+            "last_paycheck_date": last_paycheck_date,
+            "transactions": transactions
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
->>>>>>> Stashed changes
+    
+# Class for each transaction
+class Transaction(BaseModel):
+    date: str,
+    merchant: str,
+    category: list,
+    amount: float,
+    score: float,
+    pending: bool
+# TODO TODO TODO SAMPLE LOGIC FILL IN
+@app.get("/plaid/transactions/{uid}")
+def get_user_transactions(uid: str):
+    # Fetch the user's access token from Firestore
+    try:
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="User not found in Firestore")
+        
+        access_token = user_doc.to_dict().get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=404, detail="Access token not found for user")
+        
+        # Fetch transactions from Plaid
+        request = TransactionsGetRequest(
+            access_token=access_token,
+            # TODO change basic boilerplate
+            start_date="2023-01-01",
+            end_date="2023-12-31"
+        )
+        response = plaid_client.transactions_get(request)
+        transactions = response.to_dict().get("transactions", [])
+        
+        return {"transactions": transactions}
+
+# Class for 7-day mean spending score over the past month
+class SpendingScore(BaseModel):
+    dates: list
+    scores: list
+# TODO TODO TODO SAMPLE LOGIC FILL IN
+@app.get("/plaid/mean-spending-scores-month/{uid}")
+def get_mean_spending_scores_month(uid: str):
+    """Fetch 7-day mean spending scores over the past month for a user."""
+    try:
+        # Fetch user's access token from Firestore
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="User not found in Firestore")
+        
+        access_token = user_doc.to_dict().get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=404, detail="Access token not found for user")
+        
+        # Fetch transactions from Plaid
+        request = TransactionsGetRequest(
+            access_token=access_token,
+            start_date="2023-01-01",
+            end_date="2023-12-31"
+        )
+        response = plaid_client.transactions_get(request)
+        transactions = response.to_dict().get("transactions", [])
+        
+        # Dummy logic to calculate mean spending scores (to be replaced with real logic)
+        dates = ["2023-09-01", "2023-09-02", "2023-09-03"]  # Placeholder
+        scores = [75.0, 80.0, 78.0]  # Placeholder
+        
+        return {
+            "dates": dates,
+            "scores": scores
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/plaid/transaction-score/")
+def score_transaction(transaction: Transaction):
+    """Score a single transaction based on custom logic."""
+    try:
+        # TODO TODO TODO Dummy scoring logic (to be replaced with real logic)
+        score = 100.0 - (transaction.amount / 10.0)  # Placeholder logic
+        
+        # TODO LLM LOGIC HERE (Generating Description/Reccomendations)
+        return {"transaction": transaction, "score": score}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
