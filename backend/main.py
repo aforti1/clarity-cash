@@ -208,7 +208,7 @@ class paycheckSpending(BaseModel):
     last_paycheck_amount: float
     last_paycheck_date: str
     transactions: list
-# TODO TODO TODO SAMPLE LOGIC FILL IN
+    
 @app.get("/plaid/paycheck-spending/{uid}")
 def get_paycheck_spending(uid: str):
     """Fetch paycheck spending data for a user."""
@@ -223,23 +223,42 @@ def get_paycheck_spending(uid: str):
         if not access_token:
             raise HTTPException(status_code=404, detail="Access token not found for user")
         
+        # Observe the last 6 weeks of transactions
+        end_date_today, start_date = get_time_date_range(range_weeks=6)
+        
         # Fetch transactions from Plaid
         request = TransactionsGetRequest(
             access_token=access_token,
-            start_date="2023-01-01",
-            end_date="2023-12-31"
+            start_date=start_date,
+            end_date=end_date_today
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
         
-        # TODO TODO TODO NOTE NOTE NOTE Fill in logic to identify last paycheck and calculate spending since then
-        last_paycheck_amount = 2000.0  # Placeholder
-        last_paycheck_date = "2023-09-15"  # Placeholder
+        # Retreive the last deposit made to the account as the last paycheck
+        sorted_transactions = sorted(transactions, key=lambda x: x['date'], reverse=True)
+        last_paycheck = None
+        for tx in sorted_transactions:
+            if tx['amount'] < 0:  # Assuming negative amount means deposit/inflow
+                last_paycheck = tx
+                break  # Break at first instance
         
+        # Calculate spent since last paycheck
+        if last_paycheck:
+            last_paycheck_amount = abs(last_paycheck['amount'])
+            last_paycheck_date = last_paycheck['date']
+            # Calculate spent since paycheck (sum of outflows since that date)
+            spent_since_paycheck = sum(tx['amount'] for tx in transactions if tx['date'] >= last_paycheck_date and tx['amount'] > 0)
+        else:
+            # Handle case where no deposit found
+            last_paycheck_amount = 0.0
+            last_paycheck_date = "N/A"
+            spent_since_paycheck = 0.0
+
         return {
             "last_paycheck_amount": last_paycheck_amount,
             "last_paycheck_date": last_paycheck_date,
-            "spent_since_paycheck": transactions  # NOTE NOTE NOTE THIS SHOULD BE CALCULATED
+            "spent_since_paycheck": spent_since_paycheck
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
