@@ -1,34 +1,49 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { Box, Button, Heading, Input, VStack, Text } from '@chakra-ui/react'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <Box minH="100vh" w="100vw"bg="white" display="flex" alignItems="center" justifyContent="center">
+      <VStack gap={8} w="full" maxW="400px" p={4}>
+        <Heading size="2xl" color="gray.700" textAlign="center">
+          ClarityCash
+        </Heading>
+        
+        <Text color="gray.600" textAlign="center" fontSize="md">
+          Smarter spending decisions powered by real-time purchase analysis.
+        </Text>
+        
+        <VStack gap={4} w="full" maxW="350px" mt={6} alignItems="stretch">
+          <Input
+            placeholder="Username:"
+            size="lg"
+            bg="gray.200"
+            border="none"
+            _placeholder={{ color: "gray.700" }}
+          />
+          
+          <Input
+            type="password"
+            placeholder="Password:"
+            size="lg"
+            bg="gray.200"
+            border="none"
+            _placeholder={{ color: "gray.700" }}
+          />
+          
+          <Button
+            bg="gray.300"
+            size="lg"
+            w="auto"
+            px={12}
+            mt={2}
+            _hover={{ bg: "gray.400" }}
+          >
+            Login
+          </Button>
+        </VStack>
+      </VStack>
+    </Box>
   )
 }
 

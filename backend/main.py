@@ -4,16 +4,20 @@ import os
 from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
-from plaid import Client
+import plaid
 from plaid.api import plaid_api
 from plaid.model.products import Products
+from plaid.model.link_token_create_request import LinkTokenCreateRequest
+from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
+from plaid.model.accounts_get_request import AccountsGetRequest
+from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.country_code import CountryCode
 
 # Load environment variables
 load_dotenv()
 
 # ---------------------
-# Firebase setup
+# Firebase Firestore setup
 # ---------------------
 FIREBASE_CRED_PATH = os.getenv("FIREBASE_CRED_JSON")  # path to your Firebase JSON
 if not firebase_admin._apps:
@@ -29,13 +33,14 @@ PLAID_SECRET = os.getenv("PLAID_SECRET")
 PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")
 
 configuration = plaid_api.Configuration(
-    host=plaid_api.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Production,
+    host=plaid_api.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Devlopment,
     api_key={
         'clientId': PLAID_CLIENT_ID,
         'secret': PLAID_SECRET
     }
 )
-plaid_client = plaid_api.PlaidApi(configuration)
+api_client = plaid.ApiClient(configuration=configuration)
+plaid_client = plaid.PlaidApi(api_client)
 
 # ---------------------
 # FastAPI app
@@ -45,7 +50,7 @@ app = FastAPI()
 # Allow frontend CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this to your frontend URL in production
+    allow_origins=["*"],  # Change this frontend URL in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,6 +64,10 @@ app.add_middleware(
 def root():
     return {"message": "FastAPI + Firebase + Plaid backend running!"}
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint."""
+    return {"status": "ok"}
 
 @app.get("/users/{uid}")
 def get_user(uid: str):
@@ -70,9 +79,12 @@ def get_user(uid: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@app.get("/plaid/sandbox-link-token")
+@app.get("/plaid/link-token/{uid}")
 def create_sandbox_link_token():
-    """Generate a Plaid Link token for testing."""
+    """ If the uid exists in the db, return uid. Else, generate a Plaid Link token."""
+    # TODO - Check if uid exists in Firestore users collection. If so, return it. Else,
+    # return a new Plaid link token as seen below.
+    
     try:
         request = plaid_api.LinkTokenCreateRequest(
             user={"client_user_id": "test_user"},
@@ -86,4 +98,22 @@ def create_sandbox_link_token():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
+@app.get("/plaid/sandbox-exchange-token/{public_token}")
+def exchange_sandbox_public_token(public_token: str):
+    """Exchange a Plaid public token for an access token."""
+    try:
+        request = plaid_api.ItemPublicTokenExchangeRequest(public_token=public_token)
+        response = plaid_client.item_public_token_exchange(request)
+        return response.to_dict()  # Return as a JSON response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/plaid/accounts/{access_token}")
+def get_plaid_accounts(access_token: str):
+    """Fetch accounts associated with a given Plaid access token."""
+    try:
+        request = plaid_api.AccountsGetRequest(access_token=access_token)
+        response = plaid_client.accounts_get(request)
+        return response.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
