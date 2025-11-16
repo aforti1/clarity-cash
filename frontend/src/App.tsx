@@ -1,8 +1,10 @@
 import { Box, Button, Heading, Input, VStack, Text } from '@chakra-ui/react'
 import { initializeApp } from 'firebase/app'
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
-import { useFirebaseAuth } from './context/FirebaseProvider'
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
+// import { useFirebaseAuth } from './context/FirebaseProvider'
 import { useNavigate } from 'react-router-dom'
+import { PlaidAutoLauncher } from './components/PlaidAutoLauncher'
+import { useState } from 'react'
 import './App.css'
 
 function App() {
@@ -26,6 +28,9 @@ function App() {
 
   const navigate = useNavigate();
 
+  // State to hold Plaid link token for registration
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+
   const onLogin = async () => {
     const emailInput = document.querySelector('input[placeholder="Username:"]') as HTMLInputElement | null;
     const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement | null;
@@ -34,8 +39,7 @@ function App() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // On success, save the uid to context and redirect to dashboard
-      useFirebaseAuth().uid = auth.currentUser?.uid ?? null;
+      // On success, redirect to dashboard
       navigate('/dashboard');
       
     } catch (error) {
@@ -45,7 +49,7 @@ function App() {
       if (goToRegister) {
         // Request a link token from the backend
         try {
-          const resp = await fetch('/plaid/link-token', {
+          const resp = await fetch('/api/plaid/link-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
@@ -59,7 +63,16 @@ function App() {
 
           if (!linkToken) throw new Error('No link token returned from server');
 
-          
+          // Attempt to add as a new firebase user
+          try{
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+          } catch (regError) {
+            console.error('Firebase registration failed:', regError);
+          }
+
+          // Display the plaid login button on a modal
+          setLinkToken(linkToken);
 
         } catch (err) {
           console.error('Failed to fetch link token', err);
@@ -111,6 +124,8 @@ function App() {
           >
             Login
           </Button>
+
+          {linkToken && <PlaidAutoLauncher linkToken={linkToken} />}
         </VStack>
       </VStack>
     </Box>

@@ -81,7 +81,7 @@ def get_user(uid: str):
 
 @app.get("/plaid/link-token")
 def create_sandbox_link_token():
-    """ If the uid exists in the db, return uid. Else, generate a Plaid Link token."""  
+    """ Return the Plaid link token for the frontend to initialize Plaid Link """  
     try:
         request = plaid_api.LinkTokenCreateRequest(
             user={"client_user_id": "test_user"},
