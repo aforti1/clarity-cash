@@ -47,6 +47,7 @@ function PurchaseAnalyzer() {
                 fontSize: '24px',
                 padding: '8px 12px',
                 backgroundColor: '#E5E7EB',
+                color: 'black',
                 border: 'none',
                 borderRadius: '4px'
               }}>
@@ -95,17 +96,18 @@ function PurchaseAnalyzer() {
                 border: 'none',
                 fontSize: '16px',
                 fontFamily: 'inherit',
-                resize: 'vertical'
+                resize: 'vertical',
+                color: 'black'
               }}
             />
             <Button
-              colorScheme="blue"
+              bg="blue.500"
+              color="white"
               size="lg"
               w="full"
               disabled={!cost || !context}
-              onClick={() => {
-                console.log({ cost, currency, context })
-              }}
+              _hover={{ bg: "blue.600" }}
+              _disabled={{ bg: "gray.400", cursor: "not-allowed" }}
             >
               Analyze Purchase
             </Button>
