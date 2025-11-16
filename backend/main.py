@@ -1,21 +1,10 @@
-# backend/main.py
-import os
-from dotenv import load_dotenv
-
-# -----------------------------
-# Load environment variables first
-# -----------------------------
-load_dotenv()
-
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body 
 from fastapi.middleware.cors import CORSMiddleware
-
+import os 
+import json
+from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
-
-from .resolve_env import get_firebase_creds, get_plaid_secrets, get_hf_token
-from .llm_module import generate_gemini_suggestion, generate_suggestion
-
 import plaid
 from plaid.api import plaid_api
 from plaid.model.products import Products
@@ -24,88 +13,82 @@ from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchan
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.country_code import CountryCode
-
 from pydantic import BaseModel
+from resolve_env import get_firebase_creds, get_plaid_client_id, get_plaid_sandbox_secret
+from llm_module import generate_gemini_suggestion_v2, generate_suggestion_gemini
 
-# -----------------------------
-# Hugging Face token check
-# -----------------------------
-HF_API_TOKEN = get_hf_token()
-if not HF_API_TOKEN:
-    raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
+# Load environment variables
+load_dotenv()
 
-# -----------------------------
-# Firebase setup
-# -----------------------------
+# ---------------------
+# Firebase Firestore setup
+# ---------------------
 if not firebase_admin._apps:
-    cred_dict = get_firebase_creds()
-    private_key = cred_dict.get("private_key")
-    if not private_key:
-        raise ValueError("Firebase private key missing from credentials")
-    cred_dict["private_key"] = private_key.replace("\\n", "\n")
-    cred = credentials.Certificate(cred_dict)
+    cred = credentials.Certificate(get_firebase_creds())
     firebase_admin.initialize_app(cred)
-
 db = firestore.client()
 
-# -----------------------------
-# Plaid client setup
-# -----------------------------
-plaid_secrets = get_plaid_secrets()
+# ---------------------
+# Plaid setup (sandbox)
+# ---------------------
+PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID")
+PLAID_SECRET = os.getenv("PLAID_SECRET")
+PLAID_ENV = os.getenv("PLAID_ENV", "sandbox")  # Safe default to sandbox
+
 configuration = plaid.Configuration(
-    host=plaid.Environment.Sandbox,
+    host=plaid.Environment.Sandbox if PLAID_ENV == "sandbox" else plaid_api.Environment.Development,
     api_key={
-        "clientId": plaid_secrets["PLAID_CLIENT_ID"],
-        "secret": plaid_secrets["PLAID_SANDBOX_SECRET"]
+        'clientId': PLAID_CLIENT_ID,
+        'secret': PLAID_SECRET
     }
 )
-plaid_client = plaid_api.PlaidApi(plaid.ApiClient(configuration))
+api_client = plaid.ApiClient(configuration=configuration)
+plaid_client = plaid_api.PlaidApi(api_client)
 
-# -----------------------------
-# FastAPI setup
-# -----------------------------
-app = FastAPI(title="Clarity Cash Backend")
+# ---------------------
+# FastAPI app
+# ---------------------
+app = FastAPI()
 
-# CORS
+# Allow frontend CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
+    allow_origins=["*"],  # Change this frontend URL in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# -----------------------------
-# Basic routes
-# -----------------------------
+# ---------------------
+# Routes
+# ---------------------
+
 @app.get("/")
 def root():
     return {"message": "FastAPI + Firebase + Plaid backend running!"}
 
 @app.get("/health")
 def health_check():
+    """Health check endpoint."""
     return {"status": "ok"}
 
-# -----------------------------
-# Firebase user endpoint
-# -----------------------------
 @app.get("/users/{uid}")
 def get_user(uid: str):
+    """Fetch user info from Firebase Auth."""
     try:
         user = auth.get_user(uid)
         return {"uid": user.uid, "email": user.email, "display_name": user.display_name}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-# -----------------------------
-# Plaid endpoints
-# -----------------------------
 @app.get("/plaid/link-token")
 def create_sandbox_link_token():
+    """ Return the Plaid link token for the frontend to initialize Plaid Link """  
+    print("Creating Plaid link token...")
     try:
-        request = LinkTokenCreateRequest(
+        request = plaid_api.LinkTokenCreateRequest(
             user={"client_user_id": "test_user"},
-            client_name="Clarity Cash App",
+            client_name="Hackathon App",
             products=[Products("transactions")],
             country_codes=[CountryCode("US")],
             language="en"
@@ -121,64 +104,34 @@ class TokenExchangeRequest(BaseModel):
 
 @app.post("/plaid/sandbox-exchange-token")
 def exchange_sandbox_public_token(req: TokenExchangeRequest = Body(...)):
+    """Exchange a Plaid public token for an access token and store it under the user's Firestore doc."""
     try:
         request = ItemPublicTokenExchangeRequest(public_token=req.public_token)
         response_as_dict = plaid_client.item_public_token_exchange(request).to_dict()
         access_token = response_as_dict.get("access_token")
-
-        # Store in Firestore
+        payload = {"uid": str(req.uid), "access_token": access_token}  # Payload to store in Firestore
+        # Store the access token in Firestore under the user's document
         try:
             user_ref = db.collection("users").document(req.uid)
-            user_ref.set({"uid": req.uid, "access_token": access_token}, merge=True)
+            user_ref.set(payload, merge=True)
         except Exception as firestore_error:
-            print(f"[ERROR] Firestore write failed: {firestore_error}")
-
+            print(f"[ERROR] Firestore write failed: {str(firestore_error)}")
+            # Continue anyway - token exchange succeeded
+        
+        # Return a sanitized response
         return {"success": True, "access_token": access_token}
     except Exception as e:
+        print(f"[ERROR] Token exchange failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
+    
+# Just for testing
 @app.get("/plaid/accounts/{access_token}")
 def get_plaid_accounts(access_token: str):
+    """Fetch accounts associated with a given Plaid access token."""
     try:
-        request = AccountsGetRequest(access_token=access_token)
+        request = plaid_api.AccountsGetRequest(access_token=access_token)
         response = plaid_client.accounts_get(request)
         return response.to_dict()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# -----------------------------
-# Gemini endpoint
-# -----------------------------
-class GeminiRequest(BaseModel):
-    transaction_name: str
-    transaction_amount: float
-    category: str
-    user_context: dict = None
-
-@app.post("/gemini-suggestion")
-def gemini_suggestion(request: GeminiRequest):
-    try:
-        suggestion = generate_gemini_suggestion(
-            transaction_name=request.transaction_name,
-            transaction_amount=request.transaction_amount,
-            category=request.category,
-            user_context=request.user_context
-        )
-        return {"suggestion": suggestion}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# -----------------------------
-# General LLM endpoint
-# -----------------------------
-class LLMRequest(BaseModel):
-    prompt: str
-
-@app.post("/llm-suggestion")
-def llm_suggestion(request: LLMRequest):
-    try:
-        suggestion = generate_suggestion(request.prompt)
-        return {"suggestion": suggestion}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -225,11 +178,11 @@ def get_paycheck_spending(uid: str):
     
 # Class for each transaction
 class Transaction(BaseModel):
-    date: str,
-    merchant: str,
-    category: list,
-    amount: float,
-    score: float,
+    date: str
+    merchant: str
+    category: list
+    amount: float
+    score: float
     pending: bool
 # TODO TODO TODO SAMPLE LOGIC FILL IN
 @app.get("/plaid/transactions/{uid}")
@@ -256,6 +209,8 @@ def get_user_transactions(uid: str):
         transactions = response.to_dict().get("transactions", [])
         
         return {"transactions": transactions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Class for 7-day mean spending score over the past month
 class SpendingScore(BaseModel):
@@ -295,7 +250,10 @@ def get_mean_spending_scores_month(uid: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+class GenerateTextRequest(BaseModel):
+    prompt: str
+
 @app.post("/plaid/transaction-score/")
 def score_transaction(transaction: Transaction):
     """Score a single transaction based on custom logic."""
@@ -305,5 +263,33 @@ def score_transaction(transaction: Transaction):
         
         # TODO LLM LOGIC HERE (Generating Description/Reccomendations)
         return {"transaction": transaction, "score": score}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/api/generate")
+def generate_text(request: GenerateTextRequest):
+    """Generate text using Gemini API based on user prompt"""
+    try:
+        text = generate_suggestion_gemini(request.prompt)
+        return {"text": text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/transaction-suggestion")
+def get_transaction_suggestion(
+    transaction_name: str = Body(...),
+    transaction_amount: float = Body(...),
+    category: str = Body(...),
+    user_context: dict = Body(None)
+):
+    """Get Gemini-powered suggestions for a transaction"""
+    try:
+        suggestion = generate_gemini_suggestion_v2(
+            transaction_name=transaction_name,
+            transaction_amount=transaction_amount,
+            category=category,
+            user_context=user_context
+        )
+        return {"suggestion": suggestion}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

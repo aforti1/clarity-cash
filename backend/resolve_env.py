@@ -41,17 +41,8 @@ def get_plaid_secrets():
         "env": os.getenv("PLAID_ENV")
     }
 
-def get_hf_token():
-    token = os.getenv("HF_API_TOKEN")
-    if token is None:
-        raise ValueError("HF_API_TOKEN not set in environment variables")
-    return token
+def get_plaid_client_id():
+    return os.getenv("PLAID_CLIENT_ID")
 
-# -----------------------------
-# Hugging Face API token
-# -----------------------------
-def get_hf_token():
-    token = os.getenv("HF_API_TOKEN")
-    if token is None:
-        raise ValueError("HF_API_TOKEN not set in environment variables")
-    return token
+def get_plaid_sandbox_secret():
+    return os.getenv("PLAID_SANDBOX_SECRET")

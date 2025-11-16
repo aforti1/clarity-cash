@@ -1,50 +1,29 @@
 # backend/llm_module.py
 import os
-import requests
+import google.generativeai as genai
 
 # -----------------------------
-# Hugging Face model config
+# Gemini API Configuration
 # -----------------------------
-HF_MODEL = "your-username/clarity_llm"  # Replace with your hosted model repo
-HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
-if not HF_API_TOKEN:
-    raise ValueError("HF_API_TOKEN not set in environment variables. Add it to your .env file.")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel("gemini-2.0-flash-exp")
+else:
+    print("Warning: GEMINI_API_KEY not set. Gemini features will not work.")
+    gemini_model = None
 
-HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
 
-# -----------------------------
-# General LLM suggestion
-# -----------------------------
-def generate_suggestion(prompt: str, max_tokens: int = 100) -> str:
-    """
-    Send a prompt to the Hugging Face hosted model and return the generated text.
-    """
-    payload = {"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}
-    response = requests.post(
-        f"https://api-inference.huggingface.co/models/{HF_MODEL}",
-        headers=HEADERS,
-        json=payload,
-        timeout=60
-    )
-    response.raise_for_status()
-    try:
-        return response.json()[0]["generated_text"]
-    except (KeyError, IndexError):
-        return "No suggestion generated."
-
-# -----------------------------
-# Gemini transaction suggestion
-# -----------------------------
-def generate_gemini_suggestion(
+def generate_gemini_suggestion_v2(
     transaction_name: str,
     transaction_amount: float,
     category: str,
     user_context: dict = None,
-    max_tokens: int = 150
 ) -> str:
-    """
-    Generate up to 3 cheaper alternatives and 1 micro-action for a transaction.
-    """
+    """Generate suggestions using Gemini API"""
+    if not gemini_model:
+        return "Gemini API not configured. Please set GEMINI_API_KEY."
+
     prompt = f"""
 You are Clarity Cash AI, a friendly budgeting assistant.
 
@@ -53,22 +32,31 @@ Transaction:
 - Amount: ${transaction_amount}
 - Category: {category}
 
-User context: {user_context}
+User context: {user_context if user_context else "None provided"}
 
 Generate:
 1. Up to 3 cheaper alternatives (Gemini options) with price and short explanation.
 2. One micro-action to optimize user's spending related to this transaction.
 3. Keep the tone friendly, concise, and playful. Include emoji if appropriate.
 """
-    payload = {"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}
-    response = requests.post(
-        f"https://api-inference.huggingface.co/models/{HF_MODEL}",
-        headers=HEADERS,
-        json=payload,
-        timeout=60
-    )
-    response.raise_for_status()
+
     try:
-        return response.json()[0]["generated_text"]
-    except (KeyError, IndexError):
-        return "No suggestion generated."
+        response = gemini_model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Error generating suggestion: {str(e)}"
+
+
+# -----------------------------
+# General LLM suggestion
+# -----------------------------
+def generate_suggestion_gemini(prompt: str) -> str:
+    """Send a prompt to Gemini and return the generated text"""
+    if not gemini_model:
+        return "Gemini API not configured. Please set GEMINI_API_KEY."
+    
+    try:
+        response = gemini_model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Error generating suggestion: {str(e)}"

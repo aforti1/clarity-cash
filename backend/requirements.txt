@@ -6,5 +6,6 @@ firebase-admin
 plaid-python
 transformers
 torch
+google-generativeai
 
 
