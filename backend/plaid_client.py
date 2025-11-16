@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-env_path = ROOT_DIR / "env"
+env_path = ROOT_DIR / ".env"
 load_dotenv(env_path)
 
 PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID")
