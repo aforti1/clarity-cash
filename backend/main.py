@@ -257,6 +257,8 @@ def get_paycheck_spending(uid: str):
                 for tx in transactions
                 if tx['date'] >= last_paycheck_date and tx['amount'] > 0
             )
+            # Cap at 100
+            spent_since_paycheck = min(spent_since_paycheck, 100)
         else:
             # Handle case where no deposit found
             last_paycheck_amount = 0.0
