@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, body 
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
@@ -12,6 +12,7 @@ from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchan
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.country_code import CountryCode
+from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv()
@@ -78,13 +79,9 @@ def get_user(uid: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-
-@app.get("/plaid/link-token/{uid}")
+@app.get("/plaid/link-token")
 def create_sandbox_link_token():
-    """ If the uid exists in the db, return uid. Else, generate a Plaid Link token."""
-    # TODO - Check if uid exists in Firestore users collection. If so, return it. Else,
-    # return a new Plaid link token as seen below.
-    
+    """ If the uid exists in the db, return uid. Else, generate a Plaid Link token."""  
     try:
         request = plaid_api.LinkTokenCreateRequest(
             user={"client_user_id": "test_user"},
@@ -98,13 +95,24 @@ def create_sandbox_link_token():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/plaid/sandbox-exchange-token/{public_token}")
-def exchange_sandbox_public_token(public_token: str):
-    """Exchange a Plaid public token for an access token."""
+class TokenExchangeRequest(BaseModel):
+    public_token: str
+    uid: str
+@app.post("/plaid/sandbox-exchange-token")
+def exchange_sandbox_public_token(req: TokenExchangeRequest = Body(...)):
+    """Exchange a Plaid public token for an access token and store it under the user's Firestore doc."""
     try:
-        request = plaid_api.ItemPublicTokenExchangeRequest(public_token=public_token)
-        response = plaid_client.item_public_token_exchange(request)
-        return response.to_dict()  # Return as a JSON response
+        request = plaid_api.ItemPublicTokenExchangeRequest(public_token=req.public_token)
+        response_as_dict = plaid_client.item_public_token_exchange(request).to_dict()
+        access_token = response_as_dict.get("access_token")
+        item_id = response_as_dict.get("item_id")
+
+        # Save Plaid credentials to Firestore under the user's document (merges with existing fields)
+        user_doc = db.collection("users").document(req.uid)
+        user_doc.set({"plaid": {"access_token": access_token, "item_id": item_id}}, merge=True)
+
+        # Return a sanitized response
+        return {"success": True, "item_id": item_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     

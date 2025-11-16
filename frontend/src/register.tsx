@@ -36,6 +36,7 @@ function App() {
       await signInWithEmailAndPassword(auth, email, password);
       // On success, save the uid to context and redirect to dashboard
       useFirebaseAuth().uid = auth.currentUser?.uid ?? null;
+      
       navigate('/dashboard');
       
     } catch (error) {
@@ -43,28 +44,7 @@ function App() {
       console.error(error);
       const goToRegister = window.confirm('Incorrect username or password. Would you like to register?');
       if (goToRegister) {
-        // Request a link token from the backend
-        try {
-          const resp = await fetch('/plaid/link-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-          });
-
-          if (!resp.ok) throw new Error(`Link token request failed: ${resp.status}`);
-
-          // Get the link token from the response
-          const data = await resp.json();
-          const linkToken = data.link_token ?? data.linkToken;
-
-          if (!linkToken) throw new Error('No link token returned from server');
-
-          
-
-        } catch (err) {
-          console.error('Failed to fetch link token', err);
-          alert('Unable to start registration. Please try again later.');
-        }
+        navigate('/register');
       }
     }
   }
