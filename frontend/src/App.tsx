@@ -1,7 +1,7 @@
 import { Box, Button, Heading, Input, VStack, Text } from '@chakra-ui/react'
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
-// import { useFirebaseAuth } from './context/FirebaseProvider'
+import { useFirebaseAuth } from './context/FirebaseProvider'
 import { useNavigate } from 'react-router-dom'
 import { PlaidAutoLauncher } from './components/PlaidAutoLauncher'
 import { useState } from 'react'
@@ -30,6 +30,7 @@ function App() {
 
   // State to hold Plaid link token for registration
   const [linkToken, setLinkToken] = useState<string | null>(null);
+  var user = auth.currentUser?.uid ?? '';
 
   const onLogin = async () => {
     const emailInput = document.querySelector('input[placeholder="Email:"]') as HTMLInputElement | null;
@@ -65,7 +66,8 @@ function App() {
           // Attempt to add as a new firebase user
           try{
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            user = userCredential.user?.uid ?? '';
+            console.log('Firebase user registered with UID:', user);
           } catch (regError) {
             console.error('Firebase registration failed:', regError);
           }
@@ -124,7 +126,7 @@ function App() {
             Login
           </Button>
 
-          {linkToken && <PlaidAutoLauncher linkToken={linkToken} />}
+          {linkToken && <PlaidAutoLauncher uid={user} linkToken={linkToken} />}
         </VStack>
       </VStack>
     </Box>

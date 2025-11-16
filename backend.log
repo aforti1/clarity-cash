@@ -1,6 +1,23 @@
 INFO:     Will watch for changes in these directories: ['/mnt/c/Users/jairi/OneDrive/Desktop/Repos/clarity-cash']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [103306] using statreload
-INFO:     Started server process [103335]
+INFO:     Started reloader process [17548] using statreload
+INFO:     Started server process [17562]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:49410 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49410 - "GET /openapi.json HTTP/1.1" 200 OK
+Creating Plaid link token...
+INFO:     127.0.0.1:52070 - "GET /plaid/link-token HTTP/1.1" 200 OK
+[1]Exchanging Plaid public token for access token...
+[2]Received access token: access-sandbox-28d8875d-c685-4ebf-a2d4-4ebb159106a2
+[3]Storing access token for user 8O3LIQ7TPRO0wxoJuCGr673eJJ43 in Firestore...
+[4]Stored access token for user 8O3LIQ7TPRO0wxoJuCGr673eJJ43 in Firestore. (Access Token: access-sandbox-28d8875d-c685-4ebf-a2d4-4ebb159106a2)
+INFO:     127.0.0.1:46540 - "POST /plaid/sandbox-exchange-token HTTP/1.1" 200 OK
+WARNING:  StatReload detected file change in 'backend/main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [17562]
+INFO:     Started server process [18190]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.

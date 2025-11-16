@@ -3,18 +3,22 @@
 import { useEffect } from "react";
 import { usePlaidLink } from "react-plaid-link";
 
-export function PlaidAutoLauncher({ linkToken }: { linkToken: string }) {
+export function PlaidAutoLauncher({ uid, linkToken }: { uid: string, linkToken: string }) {
   const { open, ready } = usePlaidLink({
     token: linkToken,
     onSuccess: async (public_token, _metadata) => {
-      // send to backend
-      await fetch("/plaid/sandbox-exchange-token", {
+      // Send the public_token to the backend to save the access token in Firestore
+      const res = await fetch("/api/plaid/sandbox-exchange-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ public_token }),
+        body: JSON.stringify({ uid, public_token }),
       });
 
-      alert("Bank linked!");
+      if (!res.ok) {
+        alert("Failed to link bank account");
+        return;
+      }
+      alert("Bank account linked successfully!");
     },
   });
 
@@ -22,5 +26,5 @@ export function PlaidAutoLauncher({ linkToken }: { linkToken: string }) {
     if (ready) open(); // auto-open the plaid widget
   }, [ready, open]);
 
-  return null; // doesn't render ANYTHING
+  return null;  // Doesn't render anything, just shows the Plaid Link UI
 }

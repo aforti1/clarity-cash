@@ -82,6 +82,7 @@ def get_user(uid: str):
 @app.get("/plaid/link-token")
 def create_sandbox_link_token():
     """ Return the Plaid link token for the frontend to initialize Plaid Link """  
+    print("Creating Plaid link token...")
     try:
         request = plaid_api.LinkTokenCreateRequest(
             user={"client_user_id": "test_user"},
@@ -96,24 +97,29 @@ def create_sandbox_link_token():
         raise HTTPException(status_code=500, detail=str(e))
 
 class TokenExchangeRequest(BaseModel):
-    public_token: str
     uid: str
+    public_token: str
+
 @app.post("/plaid/sandbox-exchange-token")
 def exchange_sandbox_public_token(req: TokenExchangeRequest = Body(...)):
     """Exchange a Plaid public token for an access token and store it under the user's Firestore doc."""
     try:
-        request = plaid_api.ItemPublicTokenExchangeRequest(public_token=req.public_token)
+        request = ItemPublicTokenExchangeRequest(public_token=req.public_token)
         response_as_dict = plaid_client.item_public_token_exchange(request).to_dict()
         access_token = response_as_dict.get("access_token")
-        item_id = response_as_dict.get("item_id")
-
-        # Save Plaid credentials to Firestore under the user's document (merges with existing fields)
-        user_doc = db.collection("users").document(req.uid)
-        user_doc.set({"plaid": {"access_token": access_token, "item_id": item_id}}, merge=True)
-
+        payload = {"uid": str(req.uid), "access_token": access_token}  # Payload to store in Firestore
+        # Store the access token in Firestore under the user's document
+        try:
+            user_ref = db.collection("users").document(req.uid)
+            user_ref.set(payload, merge=True)
+        except Exception as firestore_error:
+            print(f"[ERROR] Firestore write failed: {str(firestore_error)}")
+            # Continue anyway - token exchange succeeded
+        
         # Return a sanitized response
-        return {"success": True, "item_id": item_id}
+        return {"success": True, "access_token": access_token}
     except Exception as e:
+        print(f"[ERROR] Token exchange failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.get("/plaid/accounts/{access_token}")
