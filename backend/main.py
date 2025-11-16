@@ -26,6 +26,8 @@ from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.country_code import CountryCode
 
 from pydantic import BaseModel
+from datetime import date
+from datetime import timedelta
 
 # -----------------------------
 # Hugging Face token check
@@ -74,6 +76,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Helper to get access token from uid from Firestore
+def get_access_token_from_uid(uid: str) -> str:
+    try:
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            return user_data.get("access_token", "")
+        else:
+            raise ValueError("User not found in Firestore")
+    except Exception as e:
+        raise ValueError(f"Error fetching access token: {str(e)}")
+    
+# Helper to get date ranges in standardized format
+def get_time_date_range(range_weeks: int = 10):
+    end_date = date.today()
+    start_date = end_date - timedelta(weeks=range_weeks)
+    return end_date.strftime("%Y-%m-%d"), start_date.strftime("%Y-%m-%d")
 
 # -----------------------------
 # Basic routes
@@ -211,7 +232,7 @@ def get_paycheck_spending(uid: str):
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
         
-        # Dummy logic to calculate paycheck spending (to be replaced with real logic)
+        # TODO TODO TODO NOTE NOTE NOTE Fill in logic to identify last paycheck and calculate spending since then
         last_paycheck_amount = 2000.0  # Placeholder
         last_paycheck_date = "2023-09-15"  # Placeholder
         
@@ -232,7 +253,7 @@ class Transaction(BaseModel):
     amount: float,
     score: float,
     pending: bool
-# TODO TODO TODO SAMPLE LOGIC FILL IN
+
 @app.get("/plaid/transactions/{uid}")
 def get_user_transactions(uid: str):
     # Fetch the user's access token from Firestore
@@ -246,12 +267,13 @@ def get_user_transactions(uid: str):
         if not access_token:
             raise HTTPException(status_code=404, detail="Access token not found for user")
         
-        # Fetch transactions from Plaid
+        end_date_today, start_date = get_time_date_range(range_weeks=10)
+        
+        # Fetch transactions from Plaid (last 10 weeks as example)
         request = TransactionsGetRequest(
             access_token=access_token,
-            # TODO change basic boilerplate
-            start_date="2023-01-01",
-            end_date="2023-12-31"
+            start_date=end_date_today,
+            end_date=start_date
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
@@ -262,33 +284,31 @@ def get_user_transactions(uid: str):
 class SpendingScore(BaseModel):
     dates: list
     scores: list
-# TODO TODO TODO SAMPLE LOGIC FILL IN
+
 @app.get("/plaid/mean-spending-scores-month/{uid}")
 def get_mean_spending_scores_month(uid: str):
     """Fetch 7-day mean spending scores over the past month for a user."""
     try:
         # Fetch user's access token from Firestore
-        user_ref = db.collection("users").document(uid)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            raise HTTPException(status_code=404, detail="User not found in Firestore")
+        access_token = get_access_token_from_uid(uid)
         
-        access_token = user_doc.to_dict().get("access_token")
         if not access_token:
             raise HTTPException(status_code=404, detail="Access token not found for user")
+        
+        end_date_today, start_date = get_time_date_range(range_weeks=10)
         
         # Fetch transactions from Plaid
         request = TransactionsGetRequest(
             access_token=access_token,
-            start_date="2023-01-01",
-            end_date="2023-12-31"
+            start_date=start_date,
+            end_date=end_date_today
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
         
-        # Dummy logic to calculate mean spending scores (to be replaced with real logic)
-        dates = ["2023-09-01", "2023-09-02", "2023-09-03"]  # Placeholder
-        scores = [75.0, 80.0, 78.0]  # Placeholder
+        ### TODO TODO TODO TODO TODO NOTE NOTE Fill in logic to calculate 7-day mean spending scores over the past 10 weeks
+        
+        
         
         return {
             "dates": dates,
@@ -329,11 +349,11 @@ def get_transaction_description(uid: str, transaction_id: str):
         if not access_token:
             raise HTTPException(status_code=404, detail="Access token not found for user")
         
-        # Fetch transactions from Plaid
+        # Fetch ALL transactions from Plaid
         request = TransactionsGetRequest(
             access_token=access_token,
-            start_date="2023-01-01",
-            end_date="2023-12-31"
+            start_date="1900-01-01",
+            end_date=date.today().strftime("%Y-%m-%d")
         )
         response = plaid_client.transactions_get(request)
         transactions = response.to_dict().get("transactions", [])
@@ -342,6 +362,8 @@ def get_transaction_description(uid: str, transaction_id: str):
         transaction_data = next((tx for tx in transactions if tx["transaction_id"] == transaction_id), None)
         if not transaction_data:
             raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        # TODO TODO TODO NOTE NOTE NOTE Get score and dummy LLM-generated description and recommendations
         
         # Dummy LLM-generated description and recommendations (to be replaced with real LLM calls)
         description = "This is a sample description generated by an LLM."
