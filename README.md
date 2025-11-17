@@ -131,26 +131,9 @@ At a high level, the scoring flow is:
    - Fees and cash-advance ratios
 4. Aggregate these into a summary “clarity” score for the period.
 
-## Development
-
-Possible useful commands (if wired in your scripts):
-
-- Backend tests (example):
-
-  ```bash
-  cd backend
-  pytest
-  ```
-
-- Frontend type checking / linting:
-
-  ```bash
-  cd frontend
-  npm run lint
-  ```
-
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
+
 
 
