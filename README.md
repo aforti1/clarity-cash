@@ -116,7 +116,7 @@ Typical backend responsibilities include:
 
 Exact endpoint names and payloads may evolve as the project grows; refer to the FastAPI routes in `backend/` for the current API surface.
 
-## Scoring Logic (Conceptual)
+## Scoring Logic
 
 At a high level, the scoring flow is:
 
@@ -152,4 +152,5 @@ Possible useful commands (if wired in your scripts):
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
+
 
